@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { WandSparkles, Trash, Camera, Image as ImageIcon, Copy, RefreshCw } from 'lucide-react';
-import { Ficha, ProjectData } from '../types';
+import { Ficha, ProjectData, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from '../types';
 import { DataTable } from './DataTable';
 import { useCatalogos } from '../context/CatalogContext';
 import {
@@ -24,9 +24,15 @@ interface FichaFormProps {
   ficha: Ficha;
   projectData: ProjectData;
   onChange: (patch: Partial<Ficha>) => void;
+  printSections?: PrintSectionsConfig;
 }
 
-export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
+export function FichaForm({
+  ficha,
+  projectData,
+  onChange,
+  printSections = DEFAULT_PRINT_SECTIONS,
+}: FichaFormProps) {
   const { listas } = useCatalogos();
   const codigoMissing = !String(ficha.codigo || '').trim();
   const ambienteMissing = !String(ficha.ambiente || '').trim();
@@ -301,7 +307,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
       {/* 1. Datos Generales */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.datosGenerales ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           1. Datos generales
         </h2>
@@ -379,7 +385,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 2. Levantamiento dimensional */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.dimensional ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           2. Levantamiento dimensional
         </h2>
@@ -490,7 +496,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 3. Elementos constructivos y acabados */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.constructivos ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           3. Elementos constructivos y acabados
         </h2>
@@ -510,7 +516,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 4. Aparatos y equipamiento */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.equipamiento ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           4. Aparatos y equipamiento
         </h2>
@@ -529,7 +535,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 5. Instalaciones eléctricas */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.electricas ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           5. Instalaciones eléctricas
         </h2>
@@ -547,7 +553,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 6. Instalaciones hidrosanitarias */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.hidrosanitarias ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           6. Instalaciones hidrosanitarias
         </h2>
@@ -565,7 +571,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 7. Patologías y deficiencias */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.patologias ? 'print:hidden' : ''}`}>
         <div className="flex justify-between items-center mb-4 border-b pb-2">
           <h2 className="text-xl font-semibold text-blue-900 print:text-lg">
             7. Patologías y deficiencias
@@ -594,7 +600,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 8. Cuantificación preliminar */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.cuantificacion ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           8. Cuantificación preliminar
         </h2>
@@ -710,7 +716,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 9. Registro fotográfico */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.fotografico ? 'print:hidden' : ''}`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 border-b pb-2 gap-2">
           <h2 className="text-xl font-semibold text-blue-900 print:text-lg">
             9. Registro fotográfico
@@ -788,8 +794,8 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 10. Observaciones generales y 11. Verificación */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${(!printSections.observaciones && !printSections.verificacion) ? 'print:hidden' : ''}`}>
+        <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.observaciones ? 'print:hidden' : ''}`}>
           <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
             10. Observaciones generales
           </h2>
@@ -825,7 +831,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
           </div>
         </div>
 
-        <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.verificacion ? 'print:hidden' : ''}`}>
           <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
             11. Verificación
           </h2>
@@ -868,7 +874,7 @@ export function FichaForm({ ficha, projectData, onChange }: FichaFormProps) {
       </div>
 
       {/* 12. Resumen de la ficha */}
-      <div className="print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.resumen ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           12. Resumen de la ficha
         </h2>

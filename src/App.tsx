@@ -24,7 +24,7 @@ import {
   FileText,
   FileSpreadsheet,
 } from 'lucide-react';
-import { Ficha, ProjectData, CatalogosMap } from './types';
+import { Ficha, ProjectData, CatalogosMap, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from './types';
 import { StorageService } from './services/storage';
 import { CatalogProvider } from './context/CatalogContext';
 import { FichaForm } from './components/FichaForm';
@@ -35,6 +35,7 @@ import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { GSARITAMA_HEADER_LOGO } from './constants/logoData';
 import { GoogleDriveBackupModal } from './components/GoogleDriveBackupModal';
+import { ExportPdfModal } from './components/ExportPdfModal';
 import { GoogleDriveService, BackupPayload } from './services/googleDriveService';
 import { getAccessToken } from './services/googleAuth';
 import { Cloud, CloudCheck, CloudUpload } from 'lucide-react';
@@ -65,8 +66,21 @@ export default function App() {
   const [showConsolidated, setShowConsolidated] = useState(false);
   const [showSync, setShowSync] = useState(false);
   const [showGDriveModal, setShowGDriveModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedAmbienteId, setSelectedAmbienteId] = useState<string | null>(null);
+
+  // Configuración de secciones activas para la exportación a PDF / Impresión
+  const [printSections, setPrintSections] = useState<PrintSectionsConfig>(() => {
+    try {
+      const saved = localStorage.getItem('gasv_print_sections');
+      if (saved) return { ...DEFAULT_PRINT_SECTIONS, ...JSON.parse(saved) };
+    } catch {
+      // ignore
+    }
+    return DEFAULT_PRINT_SECTIONS;
+  });
 
   // Google Drive cloud backup states
   const [gdriveAutoStatus, setGdriveAutoStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
@@ -92,7 +106,26 @@ export default function App() {
 
   const isFirstMount = useRef(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const exportDropdownRef = useRef<HTMLDivElement | null>(null);
   const projectBackupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Click outside to close export dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setExportDropdownOpen(false);
+      }
+    }
+    if (exportDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [exportDropdownOpen]);
 
   // Load initial data
   useEffect(() => {
@@ -584,8 +617,11 @@ export default function App() {
                 <button type="button" onClick={() => { exportCSV(fichas, projectData); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
                   <FileDown size={17} className="shrink-0" /> Exportar CSV
                 </button>
+                <button type="button" onClick={() => { setShowExportModal(true); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
+                  <FileText size={17} className="shrink-0 text-red-400" /> Exportar PDF (elegir secciones)
+                </button>
                 <button type="button" onClick={() => { window.print(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
-                  <Printer size={17} className="shrink-0" /> Imprimir / Guardar PDF
+                  <Printer size={17} className="shrink-0" /> Imprimir directo
                 </button>
               </div>
             )}
@@ -605,7 +641,7 @@ export default function App() {
                   RELEVAMIENTO ARQUITECTÓNICO
                 </h1>
                 <div className="text-xs text-sky-200 font-medium leading-tight mt-0.5">
-                  Arq. Gabriel Saritama V., Mgs • V4
+                  Arq. Gabriel Saritama V., Mgs • V1
                 </div>
               </div>
             </div>
@@ -671,18 +707,29 @@ export default function App() {
           {/* Desktop Header - Modelo 1 (Fila Inferior de Botones) */}
           <div className="hidden lg:block bg-[#0e223b] border-t border-white/10 px-4 sm:px-6 py-2 shadow-inner">
             <div className="max-w-7xl mx-auto flex items-center gap-1.5 xl:gap-2 overflow-x-auto text-xs">
-              {/* 1. Nuevo */}
+              {/* 1. Nuevo relevamiento (azul brillante primero) */}
               <button
                 type="button"
                 onClick={handleNuevoAmbiente}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold transition-colors shadow-xs shrink-0 cursor-pointer"
+                title="Crear un nuevo relevamiento"
+              >
+                <Plus size={14} className="shrink-0" />
+                <span>Nuevo relevamiento</span>
+              </button>
+
+              {/* 2. Nuevo */}
+              <button
+                type="button"
+                onClick={handleNuevoAmbiente}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
                 title="Crear un nuevo ambiente"
               >
                 <Plus size={14} className="shrink-0" />
                 <span>Nuevo</span>
               </button>
 
-              {/* 2. Guardar en verde */}
+              {/* 3. Guardar en verde */}
               <button
                 type="button"
                 onClick={handleManualSave}
@@ -702,103 +749,102 @@ export default function App() {
                 <span>Guardar</span>
               </button>
 
-              {/* 3. Fichas Guardadas (N) */}
+              {/* 4. Fichas Guardadas (N) */}
               <button
                 type="button"
                 onClick={() => setShowDrawer(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
                 title="Listado y selección de ambientes registrados"
               >
                 <LayoutList size={14} className="shrink-0" />
                 <span>Fichas Guardadas ({fichas.length})</span>
               </button>
 
-              {/* 4. Reporte Consolidado en morado */}
+              {/* 5. Reporte Consolidado en morado */}
               <button
                 type="button"
                 onClick={() => setShowConsolidated(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
                 title="Ver reporte consolidado con cómputos y fotos"
               >
                 <Layers size={14} className="shrink-0" />
                 <span>Reporte Consolidado</span>
               </button>
 
-              {/* 5. Manual */}
-              <button
-                type="button"
-                onClick={() => setShowManual(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
-                title="Manual de uso detallado"
-              >
-                <BookOpen size={14} className="shrink-0" />
-                <span>Manual</span>
-              </button>
-
-              {/* 6. Exportar CSV */}
-              <button
-                type="button"
-                onClick={() => exportCSV(fichas, projectData)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
-                title="Exportar datos en tabla Excel/CSV"
-              >
-                <FileSpreadsheet size={14} className="shrink-0" />
-                <span>Exportar CSV</span>
-              </button>
-
-              {/* 7. Exportar proyecto */}
-              <button
-                type="button"
-                onClick={handleExportProject}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
-                title="Exportar archivo JSON de respaldo completo"
-              >
-                <Download size={14} className="shrink-0" />
-                <span>Exportar proyecto</span>
-              </button>
-
-              {/* 8. Importar proyecto */}
+              {/* 6. Importar proyecto */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
                 title="Importar archivo JSON de respaldo"
               >
                 <Upload size={14} className="shrink-0" />
                 <span>Importar proyecto</span>
               </button>
 
-              {/* 9. PDF / Imprimir */}
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
-                title="Imprimir ficha o vista actual"
-              >
-                <Printer size={14} className="shrink-0" />
-                <span>PDF / Imprimir</span>
-              </button>
+              {/* 7. Menú desplegable Exportar (une CSV, Exportar proyecto e Imprimir / PDF) */}
+              <div className="relative" ref={exportDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
+                  title="Opciones de exportación"
+                  aria-expanded={exportDropdownOpen}
+                  aria-haspopup="true"
+                >
+                  <Download size={14} className="shrink-0" />
+                  <span>Exportar</span>
+                  <ChevronDown size={13} className={`shrink-0 transition-transform ${exportDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-              {/* 10. Exportar PDF con icono rojo */}
+                {exportDropdownOpen && (
+                  <div className="absolute left-0 mt-1.5 w-48 bg-slate-800 text-white border border-slate-700 rounded-lg shadow-xl py-1 z-50 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        exportCSV(fichas, projectData);
+                        setExportDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
+                    >
+                      <FileSpreadsheet size={15} className="text-emerald-400 shrink-0" />
+                      <span>Exportar CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleExportProject();
+                        setExportDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
+                    >
+                      <Download size={15} className="text-sky-400 shrink-0" />
+                      <span>Exportar proyecto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.print();
+                        setExportDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border-t border-slate-700/60 cursor-pointer"
+                    >
+                      <Printer size={15} className="text-slate-300 shrink-0" />
+                      <span>Imprimir / PDF</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 8. Exportar PDF con icono rojo (personalizado con modal) */}
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs"
-                title="Exportar como PDF"
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
+                title="Personalizar qué secciones incluir y exportar a PDF"
               >
                 <FileText size={14} className="text-red-400 shrink-0" />
                 <span>Exportar PDF</span>
-              </button>
-
-              {/* 11. Nuevo relevamiento en azul brillante (a la derecha) */}
-              <button
-                type="button"
-                onClick={handleNuevoAmbiente}
-                className="ml-auto flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold transition-colors shadow-xs shrink-0"
-                title="Crear un nuevo relevamiento"
-              >
-                <Plus size={14} className="shrink-0" />
-                <span>Nuevo relevamiento</span>
               </button>
             </div>
           </div>
@@ -820,7 +866,7 @@ export default function App() {
         </div>
 
         {/* Print Header */}
-        <div className="p-4 print:p-0">
+        <div className={`p-4 print:p-0 ${!printSections.encabezadoDoc ? 'print:hidden' : ''}`}>
           <div className="hidden print:flex items-end justify-between border-b-2 border-slate-800 pb-3 mb-5">
             <div className="flex items-center space-x-3">
               <div className="report-logo-plate flex h-[54px] w-[220px] shrink-0 items-center justify-center overflow-visible">
@@ -1048,6 +1094,7 @@ export default function App() {
             ficha={activeFicha}
             projectData={projectData}
             onChange={(patch) => setActiveFicha((prev) => ({ ...prev, ...patch }))}
+            printSections={printSections}
           />
         </div>
 
@@ -1249,6 +1296,22 @@ export default function App() {
             onAutomaticBackupTrigger={() => triggerGoogleDriveAutoBackup(fichas, projectData, catalogos)}
           />
         )}
+
+        {/* Modal de personalización de secciones para Exportar PDF / Imprimir */}
+        <ExportPdfModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          ficha={activeFicha}
+          projectData={projectData}
+          config={printSections}
+          onChangeConfig={setPrintSections}
+          onConfirmPrint={() => {
+            setShowExportModal(false);
+            setTimeout(() => {
+              window.print();
+            }, 150);
+          }}
+        />
 
         {/* Offline Status Indicator */}
         <OfflineIndicator />

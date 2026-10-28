@@ -109,3 +109,35 @@ export interface ProjectData {
 }
 
 export type CatalogosMap = Record<string, string[]>;
+
+export interface PrintSectionsConfig {
+  encabezadoDoc: boolean;
+  datosGenerales: boolean;
+  dimensional: boolean;
+  constructivos: boolean;
+  equipamiento: boolean;
+  electricas: boolean;
+  hidrosanitarias: boolean;
+  patologias: boolean;
+  cuantificacion: boolean;
+  fotografico: boolean;
+  observaciones: boolean;
+  verificacion: boolean;
+  resumen: boolean;
+}
+
+export const DEFAULT_PRINT_SECTIONS: PrintSectionsConfig = {
+  encabezadoDoc: true,
+  datosGenerales: true,
+  dimensional: true,
+  constructivos: true,
+  equipamiento: true,
+  electricas: true,
+  hidrosanitarias: true,
+  patologias: true,
+  cuantificacion: true,
+  fotografico: true,
+  observaciones: true,
+  verificacion: true,
+  resumen: true,
+};
