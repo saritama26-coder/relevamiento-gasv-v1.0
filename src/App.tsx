@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Save,
@@ -68,6 +69,7 @@ export default function App() {
   const [showGDriveModal, setShowGDriveModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedAmbienteId, setSelectedAmbienteId] = useState<string | null>(null);
 
@@ -106,24 +108,54 @@ export default function App() {
 
   const isFirstMount = useRef(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const exportButtonRef = useRef<HTMLButtonElement | null>(null);
   const exportDropdownRef = useRef<HTMLDivElement | null>(null);
   const projectBackupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Click outside to close export dropdown
+  const handleToggleExportDropdown = () => {
+    if (!exportDropdownOpen && exportButtonRef.current) {
+      const rect = exportButtonRef.current.getBoundingClientRect();
+      setDropdownCoords({
+        top: rect.bottom + 4,
+        left: Math.max(8, rect.left),
+      });
+    }
+    setExportDropdownOpen((prev) => !prev);
+  };
+
+  // Click outside to close export dropdown and track position
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
       if (
         exportDropdownRef.current &&
-        !exportDropdownRef.current.contains(event.target as Node)
+        !exportDropdownRef.current.contains(target) &&
+        exportButtonRef.current &&
+        !exportButtonRef.current.contains(target)
       ) {
         setExportDropdownOpen(false);
       }
     }
+
+    const updatePosition = () => {
+      if (exportButtonRef.current) {
+        const rect = exportButtonRef.current.getBoundingClientRect();
+        setDropdownCoords({
+          top: rect.bottom + 4,
+          left: Math.max(8, rect.left),
+        });
+      }
+    };
+
     if (exportDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
     };
   }, [exportDropdownOpen]);
 
@@ -629,11 +661,14 @@ export default function App() {
 
           {/* Desktop Header - Modelo 1 (Fila Superior) */}
           <div className="hidden lg:flex w-full items-center justify-between px-4 sm:px-6 py-2.5 max-w-7xl mx-auto">
-            {/* Izquierda: logo texto GASV / ARQ dentro de recuadro fino blanco, separador, título y subtítulo */}
+            {/* Izquierda: Logo gasv-logo.png dentro de recuadro blanco con esquinas redondeadas (~44px), separador, título y subtítulo */}
             <div className="flex items-center space-x-3.5">
-              <div className="border border-white/80 rounded px-2.5 py-1 flex flex-col items-center justify-center leading-none text-center bg-white/5 select-none shadow-xs">
-                <span className="font-black text-sm tracking-widest text-white">GASV</span>
-                <span className="text-[9px] font-bold tracking-widest text-sky-200 mt-0.5">ARQ</span>
+              <div className="h-11 w-auto bg-white rounded-md p-1 border border-white/80 shadow-xs flex items-center justify-center shrink-0 select-none overflow-hidden">
+                <img
+                  src={`${(import.meta.env?.BASE_URL || '/').replace(/\/$/, '')}/gasv-logo.png`}
+                  alt="GSARITAMA ARQ."
+                  className="h-full w-auto max-w-[160px] object-contain block select-none"
+                />
               </div>
               <div className="h-8 w-px bg-white/30" />
               <div>
@@ -646,9 +681,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Derecha: PWAInstallButton, Inicio (house), Proyectos (folder), Configuración (gear), Avatar circular con flecha */}
+            {/* Derecha: Inicio (house), Proyectos (folder), Configuración (gear), Avatar circular con flecha */}
             <div className="flex items-center space-x-2">
-              <PWAInstallButton />
               <button
                 type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -705,8 +739,8 @@ export default function App() {
           </div>
 
           {/* Desktop Header - Modelo 1 (Fila Inferior de Botones) */}
-          <div className="hidden lg:block bg-[#0e223b] border-t border-white/10 px-4 sm:px-6 py-2 shadow-inner">
-            <div className="max-w-7xl mx-auto flex items-center gap-1.5 xl:gap-2 overflow-x-auto text-xs">
+          <div className="hidden lg:block bg-[#0e223b] border-t border-white/10 px-4 sm:px-6 py-2 shadow-inner overflow-visible">
+            <div className="max-w-7xl mx-auto flex items-center gap-1.5 xl:gap-2 overflow-visible text-xs">
               {/* 1. Nuevo relevamiento (azul brillante primero) */}
               <button
                 type="button"
@@ -783,58 +817,63 @@ export default function App() {
               </button>
 
               {/* 7. Menú desplegable Exportar (une CSV, Exportar proyecto e Imprimir / PDF) */}
-              <div className="relative" ref={exportDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
-                  title="Opciones de exportación"
-                  aria-expanded={exportDropdownOpen}
-                  aria-haspopup="true"
-                >
-                  <Download size={14} className="shrink-0" />
-                  <span>Exportar</span>
-                  <ChevronDown size={13} className={`shrink-0 transition-transform ${exportDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+              <button
+                ref={exportButtonRef}
+                type="button"
+                onClick={handleToggleExportDropdown}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
+                title="Opciones de exportación"
+                aria-expanded={exportDropdownOpen}
+                aria-haspopup="true"
+              >
+                <Download size={14} className="shrink-0" />
+                <span>Exportar</span>
+                <ChevronDown size={13} className={`shrink-0 transition-transform ${exportDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-                {exportDropdownOpen && (
-                  <div className="absolute left-0 mt-1.5 w-48 bg-slate-800 text-white border border-slate-700 rounded-lg shadow-xl py-1 z-50 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        exportCSV(fichas, projectData);
-                        setExportDropdownOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
-                    >
-                      <FileSpreadsheet size={15} className="text-emerald-400 shrink-0" />
-                      <span>Exportar CSV</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleExportProject();
-                        setExportDropdownOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
-                    >
-                      <Download size={15} className="text-sky-400 shrink-0" />
-                      <span>Exportar proyecto</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.print();
-                        setExportDropdownOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border-t border-slate-700/60 cursor-pointer"
-                    >
-                      <Printer size={15} className="text-slate-300 shrink-0" />
-                      <span>Imprimir / PDF</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Portal para el menú desplegable: renderizado en document.body para evitar cualquier recorte o scrollbar */}
+              {exportDropdownOpen && typeof document !== 'undefined' && createPortal(
+                <div
+                  ref={exportDropdownRef}
+                  style={{ top: `${dropdownCoords.top}px`, left: `${dropdownCoords.left}px` }}
+                  className="fixed z-[9999] w-48 bg-slate-800 text-white border border-slate-700 rounded-lg shadow-2xl py-1 text-xs"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      exportCSV(fichas, projectData);
+                      setExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    <FileSpreadsheet size={15} className="text-emerald-400 shrink-0" />
+                    <span>Exportar CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleExportProject();
+                      setExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    <Download size={15} className="text-sky-400 shrink-0" />
+                    <span>Exportar proyecto</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.print();
+                      setExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border-t border-slate-700/60 cursor-pointer"
+                  >
+                    <Printer size={15} className="text-slate-300 shrink-0" />
+                    <span>Imprimir / PDF</span>
+                  </button>
+                </div>,
+                document.body
+              )}
 
               {/* 8. Exportar PDF con icono rojo (personalizado con modal) */}
               <button
