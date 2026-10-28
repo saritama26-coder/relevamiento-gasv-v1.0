@@ -52,6 +52,51 @@ import {
   nextConsecutive,
 } from './utils/helpers';
 
+/**
+ * Resalta en negrita el texto coincidente de una búsqueda dentro de una cadena dada,
+ * respetando mayúsculas/minúsculas originales y tolerando tildes/acentos.
+ */
+function renderHighlightedText(text: string, query: string): React.ReactNode {
+  if (!text) return text;
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return text;
+
+  // Escapar caracteres especiales de expresión regular
+  const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Permitir coincidencias con o sin tildes en vocales y ñ
+  const pattern = escaped
+    .replace(/[aáàäâ]/gi, '[aáàäâAÁÀÄÂ]')
+    .replace(/[eéèëê]/gi, '[eéèëêEÉÈËÊ]')
+    .replace(/[iíìïî]/gi, '[iíìïîIÍÌÏÎ]')
+    .replace(/[oóòöô]/gi, '[oóòöôOÓÒÖÔ]')
+    .replace(/[uúùüû]/gi, '[uúùüûUÚÙÜÛ]')
+    .replace(/[nñ]/gi, '[nñNÑ]');
+
+  try {
+    const regex = new RegExp(`(${pattern})`, 'gi');
+    const parts = text.split(regex);
+    if (parts.length <= 1) return text;
+
+    return parts.map((part, i) => {
+      if (!part) return null;
+      if (new RegExp(`^${pattern}$`, 'i').test(part)) {
+        return (
+          <strong
+            key={i}
+            className="font-black text-slate-950 bg-amber-200/90 rounded-xs px-0.5"
+          >
+            {part}
+          </strong>
+        );
+      }
+      return <React.Fragment key={i}>{part}</React.Fragment>;
+    });
+  } catch {
+    return text;
+  }
+}
+
 export default function App() {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [projectData, setProjectData] = useState<ProjectData>({
@@ -1277,9 +1322,11 @@ export default function App() {
                           <div className="min-w-0 pr-2">
                             <h3 className="font-bold text-sm text-slate-800 flex items-center flex-wrap gap-1.5">
                               <span className="font-mono text-xs bg-slate-100 text-blue-900 border border-slate-200 px-1.5 py-0.5 rounded font-bold">
-                                {f.codigo || 'S/C'}
+                                {renderHighlightedText(f.codigo || 'S/C', drawerSearchQuery)}
                               </span>
-                              <span className="truncate">{f.ambiente || 'Sin nombre'}</span>
+                              <span className="truncate">
+                                {renderHighlightedText(f.ambiente || 'Sin nombre', drawerSearchQuery)}
+                              </span>
                               {isActive && (
                                 <span className="text-[10px] bg-blue-600 text-white font-semibold px-1.5 py-0.2 rounded-full">
                                   En edición
