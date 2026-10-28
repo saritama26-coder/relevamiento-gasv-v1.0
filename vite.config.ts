@@ -9,7 +9,7 @@ export default defineConfig(({ command }) => {
 
   return {
     // AI Studio previews the app from '/', while GitHub Pages serves it from the repository path.
-    base: isDevServer ? '/' : '/relevamiento-gasv-V1/',
+    base: isDevServer ? '/' : '/relevamiento-gasv-v1.0/',
     plugins: [
       {
         name: 'stale-html-proxy-fallback',
@@ -88,7 +88,7 @@ export default {};`;
           'gasv-logo.png',
         ],
         manifest: {
-          id: '/relevamiento-gasv-V1/',
+          id: '/relevamiento-gasv-v1.0/',
           name: 'Relevamiento Arquitectónico',
           short_name: 'Relevamiento',
           description:
@@ -97,8 +97,8 @@ export default {};`;
           background_color: '#17365d',
           display: 'standalone',
           orientation: 'any',
-          start_url: '/relevamiento-gasv-V1/',
-          scope: '/relevamiento-gasv-V1/',
+          start_url: '/relevamiento-gasv-v1.0/',
+          scope: '/relevamiento-gasv-v1.0/',
           icons: [
             {
               src: './gasv-icon-right.png',
