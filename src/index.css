@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+.gsv-print-value {
+  display: none;
+}
+
+/* Reproduce la marca exacta de la cabecera principal sobre su fondo azul. */
+.report-logo-plate {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  background-color: #17365d;
+  border: 0;
+  border-radius: 0;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.report-document-logo {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 9mm 8mm;
+  }
+  body {
+    background: #fff !important;
+    font-size: 8.5pt !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .print-page-break {
+    break-after: page;
+  }
+  .print\:break-before-page {
+    break-before: page;
+  }
+  .print-card {
+    box-shadow: none !important;
+    break-inside: auto !important;
+    border: 1px solid #bfc7d1 !important;
+    border-radius: 4px !important;
+    margin-bottom: 5px !important;
+    padding: 6px 8px !important;
+  }
+  .print-card h2 {
+    font-size: 10.5pt !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 2px !important;
+    break-after: avoid !important;
+  }
+  .print-card h3 {
+    break-after: avoid !important;
+  }
+  .gap-3,
+  .gap-4,
+  .gap-6 {
+    gap: 3px 10px !important;
+  }
+  .mb-4,
+  .mb-5,
+  .mb-6,
+  .mb-8 {
+    margin-bottom: 4px !important;
+  }
+  label {
+    font-size: 7pt !important;
+    line-height: 1.1 !important;
+    color: #5b6472 !important;
+  }
+  input,
+  select,
+  textarea {
+    resize: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    color: #111 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  .gsv-print-value {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-height: 1em;
+    font-size: 8.5pt;
+    line-height: 1.2;
+    color: #111 !important;
+    display: block !important;
+  }
+  .print-card .gsv-print-value {
+    border-bottom: 0.3pt solid #e1e6ec;
+    padding-bottom: 1px;
+  }
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 7.5pt !important;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  th,
+  td {
+    border: 1px solid #bfc7d1 !important;
+    padding: 2px 3px !important;
+    vertical-align: top;
+  }
+  th {
+    background: #e9eef4 !important;
+    font-size: 7pt !important;
+  }
+  td > .gsv-print-value {
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 7.5pt;
+    line-height: 1.15;
+  }
+  .report-logo-plate {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    width: 50mm !important;
+    height: 12mm !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    background-color: #17365d !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  .report-document-logo {
+    display: block !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+  img[alt="relevamiento"] {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 50mm !important;
+    object-fit: contain !important;
+    background: #fff !important;
+    border: 1px solid #e2e6ec !important;
+    border-radius: 2px !important;
+    margin-bottom: 3px !important;
+  }
+}
