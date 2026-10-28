@@ -661,13 +661,13 @@ export default function App() {
 
           {/* Desktop Header - Modelo 1 (Fila Superior) */}
           <div className="hidden lg:flex w-full items-center justify-between px-4 sm:px-6 py-2.5 max-w-7xl mx-auto">
-            {/* Izquierda: Logo gasv-logo.png dentro de recuadro blanco con esquinas redondeadas (~44px), separador, título y subtítulo */}
+            {/* Izquierda: Logo gasv-logo.png sobre fondo azul, separador, título y subtítulo */}
             <div className="flex items-center space-x-3.5">
-              <div className="h-11 w-auto bg-white rounded-md p-1 border border-white/80 shadow-xs flex items-center justify-center shrink-0 select-none overflow-hidden">
+              <div className="flex items-center shrink-0">
                 <img
                   src={`${(import.meta.env?.BASE_URL || '/').replace(/\/$/, '')}/gasv-logo.png`}
                   alt="GSARITAMA ARQ."
-                  className="h-full w-auto max-w-[160px] object-contain block select-none"
+                  className="h-11 w-auto max-w-[190px] object-contain block select-none"
                 />
               </div>
               <div className="h-8 w-px bg-white/30" />
@@ -868,22 +868,22 @@ export default function App() {
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border-t border-slate-700/60 cursor-pointer"
                   >
-                    <Printer size={15} className="text-slate-300 shrink-0" />
-                    <span>Imprimir / PDF</span>
+                    <FileText size={15} className="text-red-400 shrink-0" />
+                    <span>Exportar PDF</span>
                   </button>
                 </div>,
                 document.body
               )}
 
-              {/* 8. Exportar PDF con icono rojo (personalizado con modal) */}
+              {/* 8. Imprimir / PDF */}
               <button
                 type="button"
-                onClick={() => setShowExportModal(true)}
+                onClick={() => window.print()}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
-                title="Personalizar qué secciones incluir y exportar a PDF"
+                title="Imprimir ficha o guardar como PDF"
               >
-                <FileText size={14} className="text-red-400 shrink-0" />
-                <span>Exportar PDF</span>
+                <Printer size={14} className="shrink-0" />
+                <span>Imprimir / PDF</span>
               </button>
             </div>
           </div>
