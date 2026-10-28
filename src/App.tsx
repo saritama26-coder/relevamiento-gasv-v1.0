@@ -24,6 +24,7 @@ import {
   ChevronDown,
   FileText,
   FileSpreadsheet,
+  Search,
 } from 'lucide-react';
 import { Ficha, ProjectData, CatalogosMap, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from './types';
 import { StorageService } from './services/storage';
@@ -72,6 +73,7 @@ export default function App() {
   const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedAmbienteId, setSelectedAmbienteId] = useState<string | null>(null);
+  const [drawerSearchQuery, setDrawerSearchQuery] = useState('');
 
   // Configuración de secciones activas para la exportación a PDF / Impresión
   const [printSections, setPrintSections] = useState<PrintSectionsConfig>(() => {
@@ -410,6 +412,7 @@ export default function App() {
     if (found) {
       loadFicha(found);
       setShowDrawer(false);
+      setDrawerSearchQuery('');
     }
   };
 
@@ -549,6 +552,17 @@ export default function App() {
       (a.codigo || a.ambiente || '').localeCompare(b.codigo || b.ambiente || '')
     );
   }, [fichas]);
+
+  const filteredDrawerFichas = useMemo(() => {
+    const raw = drawerSearchQuery.trim();
+    if (!raw) return sortedAmbientes;
+    const query = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return sortedAmbientes.filter((f) => {
+      const code = (f.codigo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const amb = (f.ambiente || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return code.includes(query) || amb.includes(query);
+    });
+  }, [sortedAmbientes, drawerSearchQuery]);
 
   if (showConsolidated) {
     return (
@@ -1139,66 +1153,175 @@ export default function App() {
 
         {/* Saved Fichas Drawer Modal */}
         {showDrawer && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex justify-end print:hidden">
+          <div
+            className="fixed inset-0 bg-black/50 z-50 flex justify-end print:hidden"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowDrawer(false);
+                setDrawerSearchQuery('');
+              }
+            }}
+          >
             <div className="w-full max-w-md bg-white h-full shadow-2xl overflow-y-auto flex flex-col">
-              <div className="p-4 border-b bg-slate-50 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-blue-900">Fichas Guardadas</h2>
+              {/* Encabezado del panel */}
+              <div className="p-4 border-b bg-[#17365d] text-white flex justify-between items-center shrink-0">
+                <div className="flex items-center space-x-2">
+                  <LayoutList size={20} className="text-sky-300" />
+                  <h2 className="text-base sm:text-lg font-bold tracking-wide">Fichas Guardadas</h2>
+                  <span className="text-xs bg-white/20 text-sky-100 px-2 py-0.5 rounded-full font-semibold">
+                    {fichas.length}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowDrawer(false)}
-                  className="text-slate-500 hover:text-slate-800 font-bold px-2 py-1"
+                  onClick={() => {
+                    setShowDrawer(false);
+                    setDrawerSearchQuery('');
+                  }}
+                  className="text-white/80 hover:text-white font-bold p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Cerrar panel"
+                  aria-label="Cerrar panel"
                 >
-                  ✕
+                  <X size={20} />
                 </button>
               </div>
-              <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                {fichas.length === 0 && (
-                  <p className="text-gray-500 italic text-center mt-10">No hay fichas guardadas.</p>
-                )}
-                {fichas.map((f) => (
-                  <div
-                    key={f.id}
-                    className="border border-slate-200 rounded p-3 bg-white shadow-sm hover:shadow transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-bold text-sm text-slate-800">
-                          {f.codigo || 'S/C'} - {f.ambiente || 'Sin nombre'}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          {f.bloque || projectData.bloque} | {f.nivel}
-                        </p>
-                      </div>
-                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded">
-                        Fotos: {f.fotos?.length || 0}
-                      </span>
-                    </div>
-                    <div className="flex space-x-2 mt-3">
+
+              {/* Campo de búsqueda en tiempo real */}
+              <div className="p-3 bg-slate-50 border-b border-slate-200 shrink-0">
+                <div className="relative flex items-center">
+                  <Search size={16} className="absolute left-3 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={drawerSearchQuery}
+                    onChange={(e) => setDrawerSearchQuery(e.target.value)}
+                    placeholder="Buscar por código o nombre de ambiente..."
+                    className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 placeholder-slate-400 transition-all shadow-2xs"
+                    autoFocus
+                  />
+                  {drawerSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setDrawerSearchQuery('')}
+                      className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition-colors cursor-pointer"
+                      title="Borrar búsqueda"
+                      aria-label="Borrar búsqueda"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Resumen de resultados del filtro */}
+                {fichas.length > 0 && (
+                  <div className="flex justify-between items-center mt-2 px-1 text-[11px] text-slate-500">
+                    <span>
+                      {drawerSearchQuery.trim()
+                        ? `${filteredDrawerFichas.length} de ${fichas.length} ${filteredDrawerFichas.length === 1 ? 'ambiente encontrado' : 'ambientes encontrados'}`
+                        : `${fichas.length} ${fichas.length === 1 ? 'ambiente guardado' : 'ambientes guardados'}`}
+                    </span>
+                    {drawerSearchQuery.trim() && (
                       <button
                         type="button"
-                        onClick={() => handleSelectAmbiente(f.id)}
-                        className="flex-1 bg-blue-50 text-blue-700 py-1.5 rounded text-xs font-semibold hover:bg-blue-100"
+                        onClick={() => setDrawerSearchQuery('')}
+                        className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
                       >
-                        Cargar
+                        Limpiar filtro
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDuplicate(f.id)}
-                        className="flex-1 bg-green-50 text-green-700 py-1.5 rounded text-xs font-semibold hover:bg-green-100 flex items-center justify-center"
-                      >
-                        <Copy size={12} className="mr-1" /> Duplicar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAmbiente(f.id)}
-                        className="bg-red-50 text-red-600 p-1.5 rounded hover:bg-red-100"
-                        title="Eliminar"
-                      >
-                        <Trash size={16} />
-                      </button>
-                    </div>
+                    )}
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* Lista de ambientes filtrados */}
+              <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                {fichas.length === 0 ? (
+                  <div className="text-center py-12 px-4">
+                    <p className="text-slate-500 italic text-sm">No hay fichas guardadas aún.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDrawer(false);
+                        handleNuevoAmbiente();
+                      }}
+                      className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-500 transition-colors cursor-pointer"
+                    >
+                      Crear nuevo ambiente
+                    </button>
+                  </div>
+                ) : filteredDrawerFichas.length === 0 ? (
+                  <div className="text-center py-10 px-4 bg-slate-50 border border-dashed border-slate-300 rounded-lg">
+                    <Search size={28} className="mx-auto text-slate-400 mb-2" />
+                    <p className="text-sm font-semibold text-slate-700">Sin coincidencias</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      No se encontraron ambientes con &ldquo;{drawerSearchQuery}&rdquo; en código o nombre.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setDrawerSearchQuery('')}
+                      className="mt-3 px-3 py-1.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold hover:bg-blue-200 transition-colors cursor-pointer"
+                    >
+                      Mostrar todos los ambientes
+                    </button>
+                  </div>
+                ) : (
+                  filteredDrawerFichas.map((f) => {
+                    const isActive = activeFicha.id === f.id;
+                    return (
+                      <div
+                        key={f.id}
+                        className={`border rounded-lg p-3 bg-white shadow-xs hover:shadow-md transition-all ${
+                          isActive ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50/20' : 'border-slate-200'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="min-w-0 pr-2">
+                            <h3 className="font-bold text-sm text-slate-800 flex items-center flex-wrap gap-1.5">
+                              <span className="font-mono text-xs bg-slate-100 text-blue-900 border border-slate-200 px-1.5 py-0.5 rounded font-bold">
+                                {f.codigo || 'S/C'}
+                              </span>
+                              <span className="truncate">{f.ambiente || 'Sin nombre'}</span>
+                              {isActive && (
+                                <span className="text-[10px] bg-blue-600 text-white font-semibold px-1.5 py-0.2 rounded-full">
+                                  En edición
+                                </span>
+                              )}
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {f.bloque || projectData.bloque || 'Sin bloque'} | {f.nivel || 'Sin nivel'}
+                            </p>
+                          </div>
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded shrink-0">
+                            Fotos: {f.fotos?.length || 0}
+                          </span>
+                        </div>
+                        <div className="flex space-x-2 mt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAmbiente(f.id)}
+                            className="flex-1 bg-blue-50 text-blue-700 py-1.5 rounded text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                          >
+                            {isActive ? 'Recargar' : 'Cargar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDuplicate(f.id)}
+                            className="flex-1 bg-green-50 text-green-700 py-1.5 rounded text-xs font-semibold hover:bg-green-100 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <Copy size={12} className="mr-1" /> Duplicar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAmbiente(f.id)}
+                            className="bg-red-50 text-red-600 p-1.5 rounded hover:bg-red-100 transition-colors cursor-pointer"
+                            title="Eliminar"
+                          >
+                            <Trash size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
