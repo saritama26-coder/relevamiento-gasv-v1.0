@@ -734,9 +734,6 @@ export default function App() {
                 <h1 className="text-sm xl:text-base font-bold tracking-wider leading-tight text-white uppercase whitespace-nowrap">
                   RELEVAMIENTO ARQUITECTÓNICO
                 </h1>
-                <div className="text-xs text-sky-200 font-medium leading-tight mt-0.5">
-                  Arq. Gabriel Saritama V., Mgs • V1
-                </div>
               </div>
             </div>
 
