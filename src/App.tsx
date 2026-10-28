@@ -641,15 +641,6 @@ export default function App() {
                   <h1 className="text-[9px] sm:text-sm font-bold tracking-[0.04em] sm:tracking-wider leading-tight text-white uppercase whitespace-nowrap">
                     RELEVAMIENTO ARQUITECTÓNICO
                   </h1>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                    <span className="text-[11px] sm:text-xs font-semibold text-sky-300 whitespace-nowrap">
-                      {projectData.profesional || 'Arq. Gabriel Saritama Veira'}
-                    </span>
-                    <span className="hidden sm:inline text-sky-400/50 text-xs">•</span>
-                    <span className="text-[10px] sm:text-xs text-slate-300 font-mono hidden sm:inline whitespace-nowrap">
-                      {projectData.contacto || 'saritama26@gmail.com'}
-                    </span>
-                  </div>
                 </div>
               </div>
 
