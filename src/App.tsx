@@ -25,6 +25,7 @@ import {
   FileText,
   FileSpreadsheet,
   Search,
+  AlertTriangle,
 } from 'lucide-react';
 import { Ficha, ProjectData, CatalogosMap, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from './types';
 import { StorageService } from './services/storage';
@@ -119,6 +120,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedAmbienteId, setSelectedAmbienteId] = useState<string | null>(null);
   const [drawerSearchQuery, setDrawerSearchQuery] = useState('');
+  const [showNuevoRelevamientoModal, setShowNuevoRelevamientoModal] = useState(false);
 
   // Configuración de secciones activas para la exportación a PDF / Impresión
   const [printSections, setPrintSections] = useState<PrintSectionsConfig>(() => {
@@ -452,6 +454,29 @@ export default function App() {
     loadFicha(createEmptyFicha());
   };
 
+  const handleResetRelevamiento = async () => {
+    const initialProject: ProjectData = {
+      proyecto: '',
+      ubicacion: '',
+      bloque: '',
+      profesional: 'Arq. Gabriel Saritama Veira',
+      contacto: 'saritama26@gmail.com',
+    };
+    const emptyFicha = createEmptyFicha();
+
+    setProjectData(initialProject);
+    setFichas([]);
+    loadFicha(emptyFicha);
+    setSelectedAmbienteId(null);
+    setDrawerSearchQuery('');
+    setHasUnsavedChanges(false);
+    setSaveStatus('Nuevo relevamiento iniciado');
+
+    await StorageService.replaceFichas([]);
+    await StorageService.saveProjectData(initialProject);
+    triggerGoogleDriveAutoBackup([], initialProject, catalogos);
+  };
+
   const handleSelectAmbiente = (id: string) => {
     const found = fichas.find((f) => f.id === id);
     if (found) {
@@ -662,7 +687,17 @@ export default function App() {
             {mobileMenuOpen && (
               <div className="mt-3 pt-3 border-t border-white/20 text-sm space-y-1.5 max-w-7xl mx-auto">
                 <p className="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-sky-300">Acciones principales</p>
-                <button type="button" onClick={() => { handleNuevoAmbiente(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-[#286b9e] hover:bg-blue-600">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNuevoRelevamientoModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-xs"
+                >
+                  <Plus size={17} className="shrink-0" /> Nuevo relevamiento
+                </button>
+                <button type="button" onClick={() => { handleNuevoAmbiente(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-[#286b9e] hover:bg-blue-600 text-white cursor-pointer">
                   <Plus size={17} className="shrink-0" /> Nuevo ambiente
                 </button>
                 <button type="button" onClick={() => { if (!isFormValid) return; handleManualSave(); setMobileMenuOpen(false); }} disabled={!isFormValid} title={isFormValid ? "Guardar cambios" : "Complete Código y Ambiente para habilitar Guardar"} className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold transition-colors ${isFormValid ? "bg-[#16794b] hover:bg-green-600 text-white" : "bg-slate-600/70 text-slate-300 cursor-not-allowed opacity-60"}`}>
@@ -791,9 +826,9 @@ export default function App() {
               {/* 1. Nuevo relevamiento (azul brillante primero) */}
               <button
                 type="button"
-                onClick={handleNuevoAmbiente}
+                onClick={() => setShowNuevoRelevamientoModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold transition-colors shadow-xs shrink-0 cursor-pointer"
-                title="Crear un nuevo relevamiento"
+                title="Iniciar un nuevo relevamiento (borra todo el proyecto)"
               >
                 <Plus size={14} className="shrink-0" />
                 <span>Nuevo relevamiento</span>
@@ -1509,6 +1544,75 @@ export default function App() {
             }, 150);
           }}
         />
+
+        {/* Modal de confirmación para Nuevo Relevamiento */}
+        {showNuevoRelevamientoModal && (
+          <div
+            className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4 print:hidden"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowNuevoRelevamientoModal(false);
+            }}
+          >
+            <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden border border-slate-200">
+              {/* Header */}
+              <div className="bg-red-700 text-white px-5 py-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle size={20} className="text-amber-300 shrink-0" />
+                  <h2 className="text-base font-bold tracking-wide">Nuevo relevamiento</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNuevoRelevamientoModal(false)}
+                  className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Cerrar"
+                  aria-label="Cerrar diálogo"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Contenido con el mensaje exacto */}
+              <div className="p-5 space-y-4">
+                <p className="text-sm text-slate-800 leading-relaxed font-medium">
+                  {`Se borrará todo el relevamiento actual (${fichas.length} ambientes, ${fichas.length} fichas). Esta acción no se puede deshacer. ¿Deseas exportar una copia de seguridad antes de continuar?`}
+                </p>
+              </div>
+
+              {/* Botones de acción solicitados */}
+              <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setShowNuevoRelevamientoModal(false)}
+                  className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer text-center"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleResetRelevamiento();
+                    setShowNuevoRelevamientoModal(false);
+                  }}
+                  className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors cursor-pointer text-center shadow-xs"
+                >
+                  Continuar sin exportar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    exportProjectBackup(fichas, projectData, catalogos);
+                    await handleResetRelevamiento();
+                    setShowNuevoRelevamientoModal(false);
+                  }}
+                  className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors cursor-pointer text-center shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  <Download size={14} className="shrink-0" />
+                  <span>Exportar y continuar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Offline Status Indicator */}
         <OfflineIndicator />
