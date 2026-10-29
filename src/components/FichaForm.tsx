@@ -511,7 +511,7 @@ export function FichaForm({
         actividad,
         unidad: 'm²',
         origenAcabado: family,
-        porVerificar: current.cantidadManual ? Boolean(current.porVerificar) : !validAmount,
+        porVerificar: !validAmount || Boolean(current.porVerificar),
         ...(current.cantidadManual ? {} : {
           cantidad: value,
           cantidadCalculada: validAmount,
