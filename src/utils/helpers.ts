@@ -699,7 +699,7 @@ export function getFichaBlockingErrors(ficha: Ficha, previousFicha?: Ficha): str
     const elem = normalize(elemento);
     const unit = normalize(unidad).replace(/²/g, '2');
     if (!elem) return;
-    const surfaces = ['piso', 'pared', 'cielo raso', 'cubierta', 'ceramica en piso', 'ceramica en pared', 'pintura en paredes', 'porcelanato', 'azulejo'];
+    const surfaces = ['piso', 'pared', 'cielo raso', 'cubierta', 'ceramica', 'pintura', 'revestimiento', 'porcelanato', 'azulejo'];
     if (surfaces.some((term) => elem.includes(term)) && unit !== 'm2') {
       errors.push(`${label} «${elemento}»: la unidad de superficie debe ser m².`);
     }
@@ -723,6 +723,7 @@ export function getFichaBlockingErrors(ficha: Ficha, previousFicha?: Ficha): str
   (ficha.elec || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Eléctricas fila #${i + 1}`, changedRow(previousFicha?.elec, r)));
   (ficha.hidro || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Hidrosanitarias fila #${i + 1}`, changedRow(previousFicha?.hidro, r)));
   (ficha.pat || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Patologías fila #${i + 1}`, changedRow(previousFicha?.pat, r)));
+  (ficha.cuan || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Cuantificación fila #${i + 1}`, changedRow(previousFicha?.cuan, r)));
 
   (ficha.cons || []).forEach((r, i) => {
     const previous = previousFicha?.cons?.find((row) => row.id === r.id);
