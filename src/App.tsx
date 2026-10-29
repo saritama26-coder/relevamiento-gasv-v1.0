@@ -39,6 +39,7 @@ import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { DrawerSummaryView } from './components/DrawerSummaryView';
 import { GSARITAMA_HEADER_LOGO } from './constants/logoData';
+import { suggestIntervencion } from './constants/catalogos';
 import { GoogleDriveBackupModal } from './components/GoogleDriveBackupModal';
 import { ExportPdfModal } from './components/ExportPdfModal';
 import { GoogleDriveService, BackupPayload } from './services/googleDriveService';
@@ -109,6 +110,47 @@ function renderHighlightedText(text: string, query: string): React.ReactNode {
   }
 }
 
+/**
+ * Función lógica en la gestión de estados de activeFicha:
+ * Al cambiar el 'tipo de daño' (patologia) y la 'severidad' en la tabla de elementos (ficha.pat),
+ * sugiere automáticamente una 'acción de reposición' (intervencion) coherente basada en el catálogo.
+ * Respeta en todo momento la selección manual del usuario.
+ */
+export function processActiveFichaStateUpdate(
+  prev: Ficha,
+  patch: Partial<Ficha>
+): Ficha {
+  if (!patch.pat) {
+    return { ...prev, ...patch };
+  }
+
+  const prevPatMap = new Map((prev.pat || []).map((row) => [row.id, row]));
+  const updatedPat = patch.pat.map((row) => {
+    const prevRow = prevPatMap.get(row.id);
+    if (!prevRow) return row;
+
+    const patologiaChanged = row.patologia !== prevRow.patologia;
+    const severidadChanged = row.severidad !== prevRow.severidad;
+    const intervencionChangedByUser = row.intervencion !== prevRow.intervencion;
+
+    // Si cambió patología o severidad y no se alteró manualmente la intervención:
+    if (!intervencionChangedByUser && (patologiaChanged || severidadChanged || (!row.intervencion && (row.patologia || row.severidad)))) {
+      const suggested = suggestIntervencion(row.patologia, row.severidad, row.elemento);
+      if (suggested) {
+        return { ...row, intervencion: suggested };
+      }
+    }
+
+    return row;
+  });
+
+  return {
+    ...prev,
+    ...patch,
+    pat: updatedPat,
+  };
+}
+
 export default function App() {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [projectData, setProjectData] = useState<ProjectData>({
@@ -117,6 +159,10 @@ export default function App() {
     bloque: '',
   });
   const [activeFicha, setActiveFicha] = useState<Ficha>(createEmptyFicha());
+
+  const handleActiveFichaChange = useCallback((patch: Partial<Ficha>) => {
+    setActiveFicha((prev) => processActiveFichaStateUpdate(prev, patch));
+  }, []);
   const [catalogos, setCatalogos] = useState<CatalogosMap>({});
 
   // UI States
@@ -1371,7 +1417,7 @@ export default function App() {
           <FichaForm
             ficha={activeFicha}
             projectData={projectData}
-            onChange={(patch) => setActiveFicha((prev) => ({ ...prev, ...patch }))}
+            onChange={handleActiveFichaChange}
             printSections={printSections}
             onFinalizarAmbiente={handleManualSave}
           />

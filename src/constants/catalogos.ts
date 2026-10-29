@@ -111,3 +111,369 @@ export const LISTAS_DEFAULT: Record<string, string[]> = {
 
 export const LOGO_GSARITAMA =
   "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%201000%20230%22%20width%3D%22100%25%22%20height%3D%22100%25%22%3E%0A%20%20%3C%21--%20Rectangular%20Outer%20Border%20--%3E%0A%20%20%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%22984%22%20height%3D%22214%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%2211%22%20stroke-linejoin%3D%22miter%22%20/%3E%0A%0A%20%20%3C%21--%20Continuous%20horizontal%20axis%20rule%3A%20extends%20from%20middle%20of%20G%20across%20the%20entire%20logo%20--%3E%0A%20%20%3Cline%20x1%3D%22125%22%20y1%3D%22126%22%20x2%3D%22980%22%20y2%3D%22126%22%20stroke%3D%22currentColor%22%20stroke-width%3D%226.5%22%20stroke-linecap%3D%22square%22%20/%3E%0A%0A%20%20%3C%21--%20Monogram%20G%3A%20Large%20circular%20arc%20with%20left%20vertical%20cutoff%20%26%20filled%20crescent%20--%3E%0A%20%20%3Cg%20id%3D%22letter-G%22%3E%0A%20%20%20%20%3C%21--%20Left%20crescent%20%28solid%20black/white%20between%20chord%20and%20outer%20arc%29%20--%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2094%2040%0A%20%20%20%20%20%20%20%20%20%20%20%20%20A%2088%2088%200%200%200%2094%20212%0A%20%20%20%20%20%20%20%20%20%20%20%20%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%0A%20%20%20%20%3C%21--%20Outer%20arc%20extending%20top%20and%20bottom%20--%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2094%2040%0A%20%20%20%20%20%20%20%20%20%20%20%20%20A%2088%2088%200%200%201%20185%2040%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22none%22%0A%20%20%20%20%20%20%20%20%20%20stroke%3D%22currentColor%22%0A%20%20%20%20%20%20%20%20%20%20stroke-width%3D%2216%22%0A%20%20%20%20%20%20%20%20%20%20stroke-linecap%3D%22square%22%20/%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2094%20212%0A%20%20%20%20%20%20%20%20%20%20%20%20%20A%2088%2088%200%200%200%20185%20212%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22none%22%0A%20%20%20%20%20%20%20%20%20%20stroke%3D%22currentColor%22%0A%20%20%20%20%20%20%20%20%20%20stroke-width%3D%2216%22%0A%20%20%20%20%20%20%20%20%20%20stroke-linecap%3D%22square%22%20/%3E%0A%0A%20%20%20%20%3C%21--%20Vertical%20boundary%20line%20of%20the%20chord%20--%3E%0A%20%20%20%20%3Cline%20x1%3D%2294%22%20y1%3D%2236%22%20x2%3D%2294%22%20y2%3D%22216%22%20stroke%3D%22currentColor%22%20stroke-width%3D%226%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Monogram%20S%3A%20Elegant%20classical%20serif%20S%20overlapping%20G%20--%3E%0A%20%20%3Cg%20id%3D%22letter-S%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%20282%2040%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20246%2038%2C%20196%2050%2C%20190%2078%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20185%20104%2C%20206%20116%2C%20232%20122%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20264%20130%2C%20290%20136%2C%20290%20158%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20290%20180%2C%20264%20194%2C%20234%20194%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20202%20194%2C%20172%20182%2C%20164%20158%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%20138%20162%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20146%20198%2C%20186%20216%2C%20234%20216%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20286%20216%2C%20318%20190%2C%20318%20154%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20318%20126%2C%20292%20112%2C%20260%20105%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20232%2098%2C%20214%2091%2C%20214%2074%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20214%2059%2C%20232%2054%2C%20252%2054%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20278%2054%2C%20300%2065%2C%20306%2084%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%20332%2078%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20322%2048%2C%20294%2040%2C%20282%2040%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Letter%20A%20in%20ARIT%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28325%2C%2048%29%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2046%200%20L%2010%20148%20L%2028%20148%20L%2038%20102%20L%2078%20102%20L%2088%20148%20L%20106%20148%20Z%0A%20%20%20%20%20%20%20%20%20%20%20%20%20M%2058%2026%20L%2072%2082%20L%2044%2082%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%220%22%20y%3D%22142%22%20width%3D%2238%22%20height%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%2280%22%20y%3D%22142%22%20width%3D%2238%22%20height%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%2236%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%225%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Letter%20R%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28435%2C%2048%29%22%3E%0A%20%20%20%20%3Crect%20x%3D%2212%22%20y%3D%220%22%20width%3D%2222%22%20height%3D%22148%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2028%200%20L%2065%200%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2088%200%2C%20104%2014%2C%20104%2044%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%20104%2074%2C%2088%2086%2C%2065%2086%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%2028%2086%20Z%0A%20%20%20%20%20%20%20%20%20%20%20%20%20M%2034%2018%20L%2060%2018%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2074%2018%2C%2080%2028%2C%2080%2044%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2080%2060%2C%2074%2068%2C%2060%2068%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%2034%2068%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2054%2082%20L%2090%20148%20L%20116%20148%20L%2076%2078%20Z%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%222%22%20y%3D%220%22%20width%3D%2234%22%20height%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%222%22%20y%3D%22142%22%20width%3D%2238%22%20height%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Letter%20I%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28545%2C%2048%29%22%3E%0A%20%20%20%20%3Crect%20x%3D%2220%22%20y%3D%220%22%20width%3D%2222%22%20height%3D%22148%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%224%22%20y%3D%220%22%20width%3D%2254%22%20height%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%224%22%20y%3D%22142%22%20width%3D%2254%22%20height%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Letter%20T%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28605%2C%2048%29%22%3E%0A%20%20%20%20%3Crect%20x%3D%2228%22%20y%3D%220%22%20width%3D%2222%22%20height%3D%22148%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2278%22%20height%3D%2216%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%220%22%20y%3D%2214%22%20width%3D%227%22%20height%3D%2210%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%2271%22%20y%3D%2214%22%20width%3D%227%22%20height%3D%2210%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%2214%22%20y%3D%22142%22%20width%3D%2250%22%20height%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Architect%20Compass%20with%20Target%20Crosshairs%20%28Forms%20letter%20A%20in%20SARITAMA%29%20--%3E%0A%20%20%3Cg%20id%3D%22compass%22%20transform%3D%22translate%28684%2C%2016%29%22%3E%0A%20%20%20%20%3C%21--%20Top%20needle%20axis%20pin%20--%3E%0A%20%20%20%20%3Cline%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%2238%22%20stroke%3D%22currentColor%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20/%3E%0A%20%20%20%20%0A%20%20%20%20%3C%21--%20Outer%20crosshairs%20circle%20/%20target%20--%3E%0A%20%20%20%20%3Ccircle%20cx%3D%220%22%20cy%3D%2246%22%20r%3D%2230%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%225%22%20/%3E%0A%20%20%20%20%3Ccircle%20cx%3D%220%22%20cy%3D%2246%22%20r%3D%2214%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223.5%22%20/%3E%0A%20%20%20%20%3C%21--%20Reticle%20crosshairs%20--%3E%0A%20%20%20%20%3Cline%20x1%3D%22-38%22%20y1%3D%2246%22%20x2%3D%2238%22%20y2%3D%2246%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223.5%22%20/%3E%0A%20%20%20%20%3Cline%20x1%3D%220%22%20y1%3D%2212%22%20x2%3D%220%22%20y2%3D%2280%22%20stroke%3D%22currentColor%22%20stroke-width%3D%223.5%22%20/%3E%0A%20%20%20%20%3Ccircle%20cx%3D%220%22%20cy%3D%2246%22%20r%3D%225%22%20fill%3D%22currentColor%22%20/%3E%0A%0A%20%20%20%20%3C%21--%20Left%20Leg%20--%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%20-6%2052%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%20-56%20182%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%20-40%20184%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%200%2068%20Z%22%20%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%0A%20%20%20%20%3C%21--%20Right%20Leg%20--%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%206%2052%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%2056%20182%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%2040%20184%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%200%2068%20Z%22%20%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%0A%20%20%20%20%3C%21--%20Compass%20needle%20tips%20--%3E%0A%20%20%20%20%3Cpolygon%20points%3D%22-52%2C182%20-56%2C182%20-48%2C198%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Cpolygon%20points%3D%2252%2C182%2056%2C182%2048%2C198%22%20fill%3D%22currentColor%22%20/%3E%0A%0A%20%20%20%20%3C%21--%20Adjustment%20thumbscrew%20--%3E%0A%20%20%20%20%3Crect%20x%3D%22-30%22%20y%3D%22106%22%20width%3D%2260%22%20height%3D%229%22%20rx%3D%223%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Cline%20x1%3D%22-24%22%20y1%3D%22110.5%22%20x2%3D%2224%22%20y2%3D%22110.5%22%20stroke%3D%22currentColor%22%20stroke-width%3D%221.5%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Letter%20M%20%28Top%20right%20above%20axis%20line%29%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28750%2C%2048%29%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%200%200%20L%2026%200%20L%2052%2074%20L%2078%200%20L%20104%200%20L%20104%2078%20L%2084%2078%20L%2084%2026%20L%2062%2078%20L%2042%2078%20L%2020%2026%20L%2020%2078%20L%200%2078%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Letter%20A%20%28Top%20right%20above%20axis%20line%29%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28860%2C%2048%29%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2040%200%20L%2010%2078%20L%2026%2078%20L%2034%2056%20L%2066%2056%20L%2074%2078%20L%2090%2078%20Z%0A%20%20%20%20%20%20%20%20%20%20%20%20%20M%2050%2014%20L%2062%2046%20L%2038%2046%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%222%22%20y%3D%2274%22%20width%3D%2228%22%20height%3D%224%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%2270%22%20y%3D%2274%22%20width%3D%2228%22%20height%3D%224%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Subtitle%3A%20ARQ.%20%28Below%20the%20axis%20line%3A%20A%20under%20compass%2C%20R%20under%20M%2C%20Q.%20under%20A%29%20--%3E%0A%20%20%3C%21--%20A%20under%20compass%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28660%2C%20134%29%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2024%200%20L%204%2060%20L%2018%2060%20L%2023%2042%20L%2043%2042%20L%2048%2060%20L%2062%2060%20Z%0A%20%20%20%20%20%20%20%20%20%20%20%20%20M%2033%2012%20L%2040%2032%20L%2026%2032%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20R%20under%20M%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28760%2C%20134%29%22%3E%0A%20%20%20%20%3Crect%20x%3D%228%22%20y%3D%220%22%20width%3D%2216%22%20height%3D%2260%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2022%200%20L%2044%200%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2058%200%2C%2068%207%2C%2068%2019%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2068%2031%2C%2058%2038%2C%2044%2038%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%2022%2038%20Z%0A%20%20%20%20%20%20%20%20%20%20%20%20%20M%2024%2010%20L%2040%2010%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2048%2010%2C%2052%2013%2C%2052%2019%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2052%2025%2C%2048%2028%2C%2040%2028%0A%20%20%20%20%20%20%20%20%20%20%20%20%20L%2024%2028%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2036%2034%20L%2060%2060%20L%2076%2060%20L%2050%2032%20Z%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Crect%20x%3D%220%22%20y%3D%2256%22%20width%3D%2226%22%20height%3D%224%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%0A%20%20%3C%21--%20Q%20under%20A%20--%3E%0A%20%20%3Cg%20transform%3D%22translate%28855%2C%20134%29%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2036%200%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2016%200%2C%200%2014%2C%200%2031%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%200%2048%2C%2016%2062%2C%2036%2062%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2056%2062%2C%2072%2048%2C%2072%2031%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2072%2014%2C%2056%200%2C%2036%200%20Z%0A%20%20%20%20%20%20%20%20%20%20%20%20%20M%2036%2010%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2048%2010%2C%2056%2019%2C%2056%2031%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2056%2043%2C%2048%2052%2C%2036%2052%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2024%2052%2C%2016%2043%2C%2016%2031%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2016%2019%2C%2024%2010%2C%2036%2010%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Cpath%20d%3D%22M%2044%2044%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2052%2044%2C%2062%2052%2C%2074%2060%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2082%2065%2C%2088%2068%2C%2092%2070%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2088%2072%2C%2076%2070%2C%2064%2062%0A%20%20%20%20%20%20%20%20%20%20%20%20%20C%2056%2056%2C%2048%2050%2C%2044%2044%20Z%22%0A%20%20%20%20%20%20%20%20%20%20fill%3D%22currentColor%22%20/%3E%0A%20%20%20%20%3Ccircle%20cx%3D%22106%22%20cy%3D%2256%22%20r%3D%226%22%20fill%3D%22currentColor%22%20/%3E%0A%20%20%3C/g%3E%0A%3C/svg%3E%0A";
+
+
+/**
+ * Configuración de valores por defecto para elementos comunes del catálogo.
+ */
+export interface ElementoDefaultConfig {
+  unidad?: string;
+  cantidad?: string;
+  severidad?: string;
+  intervencion?: string;
+  patologia?: string;
+  ubicacion?: string;
+}
+
+export const ELEMENTO_DEFAULTS_MAP: Record<string, ElementoDefaultConfig> = {
+  // Acabados y envolvente
+  "ceramica en piso": { unidad: "m²", ubicacion: "General" },
+  "cerámica en piso": { unidad: "m²", ubicacion: "General" },
+  "ceramica en pared": { unidad: "m²", ubicacion: "General" },
+  "cerámica en pared": { unidad: "m²", ubicacion: "General" },
+  "pintura en paredes": { unidad: "m²", ubicacion: "General" },
+  "piso": { unidad: "m²", ubicacion: "General" },
+  "paredes": { unidad: "m²", ubicacion: "General" },
+  "cielo raso": { unidad: "m²", ubicacion: "General" },
+  "cubierta": { unidad: "m²", ubicacion: "General" },
+  "zócalos": { unidad: "ml", ubicacion: "Perímetro" },
+  "zocalos": { unidad: "ml", ubicacion: "Perímetro" },
+
+  // Instalaciones eléctricas
+  "interruptor simple": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Junto a puerta",
+  },
+  "interruptor doble": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Junto a puerta",
+  },
+  "interruptor temporizador": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Junto a puerta",
+  },
+  "tomacorriente": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Parte baja",
+  },
+  "tomacorriente doble": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Parte baja",
+  },
+  "tomacorriente regulado": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Parte baja",
+  },
+  "lámpara / luminaria": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Centro del ambiente",
+  },
+  "lampara / luminaria": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Centro del ambiente",
+  },
+  "punto de luz": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "Centro del ambiente",
+  },
+  "instalaciones eléctricas": {
+    unidad: "glb",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "General",
+  },
+  "instalaciones electricas": {
+    unidad: "glb",
+    severidad: "Crítica",
+    intervencion: "Reposición total",
+    ubicacion: "General",
+  },
+
+  // Instalaciones hidrosanitarias y sanitarios
+  "lavamanos": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Severa",
+    intervencion: "Reposición parcial",
+    ubicacion: "Zona húmeda",
+  },
+  "inodoro": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Severa",
+    intervencion: "Reposición parcial",
+    ubicacion: "Zona húmeda",
+  },
+  "urinario": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Severa",
+    intervencion: "Reposición parcial",
+    ubicacion: "Zona húmeda",
+  },
+  "ducha": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Severa",
+    intervencion: "Reposición parcial",
+    ubicacion: "Zona húmeda",
+  },
+  "llave de lavamanos": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Moderada",
+    intervencion: "Reparación",
+    ubicacion: "Puntual",
+  },
+  "juego de herraje para inodoro": {
+    unidad: "jgo",
+    cantidad: "1.00",
+    severidad: "Severa",
+    intervencion: "Reposición parcial",
+    ubicacion: "Puntual",
+  },
+  "instalaciones hidrosanitarias": {
+    unidad: "glb",
+    severidad: "Severa",
+    intervencion: "Reposición parcial",
+    ubicacion: "General",
+  },
+
+  // Carpintería y puertas
+  "puerta de cabina": {
+    unidad: "u",
+    cantidad: "1.00",
+    patologia: "Mantenimiento",
+    ubicacion: "Puntual",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+  },
+  "puerta de cabinas": {
+    unidad: "u",
+    cantidad: "1.00",
+    patologia: "Mantenimiento",
+    ubicacion: "Puntual",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+  },
+  "puerta de ingreso": {
+    unidad: "u",
+    cantidad: "1.00",
+    patologia: "Mantenimiento",
+    ubicacion: "Ingreso",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+  },
+  "puerta": {
+    unidad: "u",
+    cantidad: "1.00",
+    patologia: "Mantenimiento",
+    ubicacion: "Ingreso",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+  },
+  "puertas": {
+    unidad: "u",
+    cantidad: "1.00",
+    patologia: "Mantenimiento",
+    ubicacion: "Puntual",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+  },
+  "puerta de aluminio y vidrio": {
+    unidad: "u",
+    cantidad: "1.00",
+    patologia: "Mantenimiento",
+    ubicacion: "Ingreso",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+  },
+  "ventanas": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+    ubicacion: "Junto a ventana",
+  },
+  "ventana": {
+    unidad: "u",
+    cantidad: "1.00",
+    severidad: "Leve",
+    intervencion: "Mantenimiento preventivo",
+    ubicacion: "Junto a ventana",
+  },
+  "divisiones": {
+    unidad: "u",
+    cantidad: "1.00",
+    ubicacion: "Puntual",
+  },
+  "escaleras": {
+    unidad: "glb",
+    ubicacion: "Puntual",
+  },
+  "barandas": {
+    unidad: "ml",
+    ubicacion: "Perímetro",
+  },
+  "estructura": {
+    unidad: "glb",
+    severidad: "Severa",
+    intervencion: "Solicitar criterio técnico especializado",
+    ubicacion: "General",
+  },
+  "mobiliario / equipamiento": {
+    unidad: "u",
+    cantidad: "1.00",
+    ubicacion: "Puntual",
+  },
+};
+
+/**
+ * Busca la configuración predeterminada de un elemento dado su nombre.
+ * Tolera mayúsculas, minúsculas, espacios y tildes.
+ */
+export function getElementoDefaults(elemento: string): ElementoDefaultConfig | null {
+  if (!elemento) return null;
+  const raw = elemento.trim().toLowerCase();
+  const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Coincidencia exacta directa
+  if (ELEMENTO_DEFAULTS_MAP[raw]) return ELEMENTO_DEFAULTS_MAP[raw];
+
+  // Coincidencia exacta normalizada sin tildes
+  for (const [key, val] of Object.entries(ELEMENTO_DEFAULTS_MAP)) {
+    const keyNorm = key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (keyNorm === normalized) return val;
+  }
+
+  // Coincidencia por contención parcial
+  for (const [key, val] of Object.entries(ELEMENTO_DEFAULTS_MAP)) {
+    const keyNorm = key.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (normalized.includes(keyNorm) || keyNorm.includes(normalized)) return val;
+  }
+
+  return null;
+}
+
+/**
+ * Sugiere una acción de reposición o intervención coherente basada en el catálogo,
+ * a partir del tipo de daño (patología) y el nivel de severidad especificado.
+ */
+export function suggestIntervencion(patologia: string, severidad: string, elemento?: string): string {
+  const patNorm = (patologia || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const sevNorm = (severidad || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (!patNorm && !sevNorm) return '';
+
+  // Elemento faltante siempre requiere reposición total
+  if (patNorm.includes('elemento faltante') || patNorm.includes('faltante')) {
+    return 'Reposición total';
+  }
+
+  // Deterioro severo
+  if (patNorm.includes('deterioro severo') || patNorm.includes('deterioro')) {
+    if (sevNorm === 'critica') return 'Reposición total';
+    if (sevNorm === 'severa') return 'Retiro y reposición';
+    if (sevNorm === 'moderada') return 'Reparación';
+    return 'Mantenimiento correctivo';
+  }
+
+  // Fuga de agua
+  if (patNorm.includes('fuga')) {
+    if (sevNorm === 'critica') return 'Reposición total';
+    if (sevNorm === 'severa') return 'Reposición parcial';
+    return 'Reparación';
+  }
+
+  // Piezas rotas
+  if (patNorm.includes('piezas rotas') || patNorm.includes('rotas') || patNorm.includes('rotura')) {
+    if (sevNorm === 'critica') return 'Reposición total';
+    if (sevNorm === 'severa') return 'Reposición parcial';
+    return 'Reparación';
+  }
+
+  // Grietas
+  if (patNorm.includes('grieta')) {
+    if (sevNorm === 'critica') return 'Intervención integral';
+    if (sevNorm === 'severa') return 'Solicitar criterio técnico especializado';
+    return 'Reparación';
+  }
+
+  // Fisuras
+  if (patNorm.includes('fisura')) {
+    if (sevNorm === 'critica' || sevNorm === 'severa') return 'Reparación';
+    if (sevNorm === 'moderada') return 'Reparación';
+    return 'Mantenimiento preventivo';
+  }
+
+  // Desprendimiento
+  if (patNorm.includes('desprendimiento')) {
+    if (sevNorm === 'critica' || sevNorm === 'severa') return 'Retiro y reposición';
+    return 'Reparación';
+  }
+
+  // Desgaste
+  if (patNorm.includes('desgaste')) {
+    if (sevNorm === 'critica') return 'Reposición total';
+    if (sevNorm === 'severa' || sevNorm === 'moderada') return 'Mantenimiento correctivo';
+    return 'Mantenimiento preventivo';
+  }
+
+  // Oxidación
+  if (patNorm.includes('oxidacion') || patNorm.includes('oxido')) {
+    if (sevNorm === 'critica') return 'Reposición total';
+    if (sevNorm === 'severa') return 'Reposición parcial';
+    if (sevNorm === 'moderada') return 'Reparación';
+    return 'Mantenimiento preventivo';
+  }
+
+  // Humedad o Filtración
+  if (patNorm.includes('humedad') || patNorm.includes('filtracion')) {
+    if (sevNorm === 'critica') return 'Intervención integral';
+    if (sevNorm === 'severa') return 'Solicitar criterio técnico especializado';
+    return 'Reparación';
+  }
+
+  // Mantenimiento
+  if (patNorm.includes('mantenimiento')) {
+    if (sevNorm === 'critica') return 'Intervención integral';
+    if (sevNorm === 'severa' || sevNorm === 'moderada') return 'Mantenimiento correctivo';
+    return 'Mantenimiento preventivo';
+  }
+
+  // Si no coincide una patología específica, sugerir por severidad
+  if (sevNorm === 'critica') return 'Reposición total';
+  if (sevNorm === 'severa') return 'Reposición parcial';
+  if (sevNorm === 'moderada') return 'Reparación';
+  if (sevNorm === 'leve') return 'Mantenimiento preventivo';
+
+  return 'Reparación';
+}
+

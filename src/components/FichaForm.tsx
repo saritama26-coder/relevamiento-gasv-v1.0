@@ -22,6 +22,8 @@ import {
   ASISTENTE_ELEMENTOS,
   ASISTENTE_INTERVENCIONES,
   ASISTENTE_DEFAULTS,
+  getElementoDefaults,
+  suggestIntervencion,
 } from '../constants/catalogos';
 import {
   compressImage,
@@ -319,6 +321,94 @@ export function FichaForm({
     return isNaN(n) ? v : n.toFixed(2);
   };
 
+  /**
+   * Automatización para la tabla de elementos y patologías (Sección 7):
+   * 1. Al seleccionar un elemento del catálogo, autocompleta unidad, cantidad (1.00 si u),
+   *    severidad, patología, ubicación ('General' o específica) y acción de reposición.
+   * 2. Al cambiar el tipo de daño (patología) o la severidad, sugiere automáticamente una acción
+   *    de reposición coherente basada en el catálogo.
+   * 3. Mantiene en todo momento la plena capacidad de edición manual por parte del usuario.
+   */
+  const handlePatTableChange = (newData: any[]) => {
+    const updated = newData.map((row, idx) => {
+      const prev = ficha.pat[idx];
+      let newRow = { ...row };
+
+      // Caso 1: Se seleccionó o modificó el elemento afectado
+      if (!prev || row.elemento !== prev.elemento) {
+        if (row.elemento) {
+          const defaults = getElementoDefaults(row.elemento);
+          if (defaults) {
+            if (defaults.unidad && (!row.unidad || (prev && row.unidad === prev.unidad))) {
+              newRow.unidad = defaults.unidad;
+            }
+            if ((newRow.unidad === 'u' || defaults.unidad === 'u') && (!newRow.cantidad || newRow.cantidad === '0.00' || newRow.cantidad === '0')) {
+              newRow.cantidad = '1.00';
+            } else if (defaults.cantidad && (!newRow.cantidad || newRow.cantidad === '0.00')) {
+              newRow.cantidad = defaults.cantidad;
+            }
+            if (defaults.severidad && (!row.severidad || (prev && row.severidad === prev.severidad))) {
+              newRow.severidad = defaults.severidad;
+            }
+            if (defaults.patologia && (!row.patologia || (prev && row.patologia === prev.patologia))) {
+              newRow.patologia = defaults.patologia;
+            }
+            if (defaults.ubicacion && (!row.ubicacion || row.ubicacion === 'General' || (prev && row.ubicacion === prev.ubicacion))) {
+              newRow.ubicacion = defaults.ubicacion;
+            }
+            if (defaults.intervencion && (!row.intervencion || (prev && row.intervencion === prev.intervencion))) {
+              newRow.intervencion = defaults.intervencion;
+            }
+          } else {
+            if (!newRow.ubicacion) newRow.ubicacion = 'General';
+            if (newRow.unidad === 'u' && (!newRow.cantidad || newRow.cantidad === '0.00' || newRow.cantidad === '0')) {
+              newRow.cantidad = '1.00';
+            }
+          }
+        }
+      }
+
+      // Caso 2: Se modificó 'patologia' (tipo de daño) o 'severidad'
+      const patologiaChanged = prev && row.patologia !== prev.patologia;
+      const severidadChanged = prev && row.severidad !== prev.severidad;
+      const intervencionChangedByUser = prev && row.intervencion !== prev.intervencion;
+
+      if (!intervencionChangedByUser && (patologiaChanged || severidadChanged || (!newRow.intervencion && (newRow.patologia || newRow.severidad)))) {
+        const suggested = suggestIntervencion(newRow.patologia, newRow.severidad, newRow.elemento);
+        if (suggested) {
+          newRow.intervencion = suggested;
+        }
+      }
+
+      return newRow;
+    });
+
+    onChange({ pat: updated });
+  };
+
+  const handleGenericElemTableChange = (key: 'cons' | 'equip' | 'elec' | 'hidro', newData: any[]) => {
+    const prevList = (ficha[key] as any[]) || [];
+    const updated = newData.map((row, idx) => {
+      const prev = prevList[idx];
+      let newRow = { ...row };
+      if (!prev || row.elemento !== prev.elemento) {
+        if (row.elemento) {
+          const defaults = getElementoDefaults(row.elemento);
+          if (defaults) {
+            if (defaults.unidad && (!row.unidad || (prev && row.unidad === prev.unidad))) {
+              newRow.unidad = defaults.unidad;
+            }
+            if ((newRow.unidad === 'u' || defaults.unidad === 'u') && (!newRow.cantidad || newRow.cantidad === '0.00' || newRow.cantidad === '0')) {
+              newRow.cantidad = '1.00';
+            }
+          }
+        }
+      }
+      return newRow;
+    });
+    onChange({ [key]: updated });
+  };
+
   const fotoCount = Array.isArray(ficha.fotos) ? ficha.fotos.length : 0;
   const photoPercentage = Math.min(100, Math.round((fotoCount / SUGGESTED_PHOTOS_TARGET) * 100));
   const hasZeroPhotos = fotoCount === 0;
@@ -543,7 +633,7 @@ export function FichaForm({
         </h2>
         <DataTable
           data={ficha.cons}
-          onChange={(newData) => onChange({ cons: newData })}
+          onChange={(newData) => handleGenericElemTableChange('cons', newData)}
           columns={[
             { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem' },
             { key: 'descripcion', label: 'Descripción', type: 'text' },
@@ -563,7 +653,7 @@ export function FichaForm({
         </h2>
         <DataTable
           data={ficha.equip}
-          onChange={(newData) => onChange({ equip: newData })}
+          onChange={(newData) => handleGenericElemTableChange('equip', newData)}
           columns={[
             { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem' },
             { key: 'descripcion', label: 'Descripción', type: 'text' },
@@ -582,7 +672,7 @@ export function FichaForm({
         </h2>
         <DataTable
           data={ficha.elec}
-          onChange={(newData) => onChange({ elec: newData })}
+          onChange={(newData) => handleGenericElemTableChange('elec', newData)}
           columns={[
             { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
@@ -600,7 +690,7 @@ export function FichaForm({
         </h2>
         <DataTable
           data={ficha.hidro}
-          onChange={(newData) => onChange({ hidro: newData })}
+          onChange={(newData) => handleGenericElemTableChange('hidro', newData)}
           columns={[
             { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
@@ -627,7 +717,7 @@ export function FichaForm({
         </div>
         <DataTable
           data={ficha.pat}
-          onChange={(newData) => onChange({ pat: newData })}
+          onChange={handlePatTableChange}
           columns={[
             { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem' },
             { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos' },

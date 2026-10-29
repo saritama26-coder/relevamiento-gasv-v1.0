@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronUp, ChevronDown, BookmarkPlus, Trash } from 'lucide-react';
+import { ChevronUp, ChevronDown, BookmarkPlus, Trash, Copy } from 'lucide-react';
 import { useCatalogos } from '../context/CatalogContext';
 
 export interface ColumnDef {
@@ -117,6 +117,18 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
             positionMenu();
             setOpen(true);
           }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              if (open && filteredOptions.length > 0) {
+                event.preventDefault();
+                handleSelectOption(filteredOptions[0]);
+              } else {
+                setOpen(false);
+              }
+            } else if (event.key === 'Escape') {
+              setOpen(false);
+            }
+          }}
         />
         <button
           type="button"
@@ -183,9 +195,20 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
   const handleAddRow = () => {
     const newRow: any = { id: Math.random().toString() };
     columns.forEach((col) => {
-      newRow[col.key] = '';
+      newRow[col.key] = col.key === 'ubicacion' ? 'General' : '';
     });
     onChange([...data, newRow]);
+  };
+
+  const handleDuplicate = (idx: number) => {
+    const copy = [...data];
+    const sourceRow = copy[idx];
+    const duplicatedRow = {
+      ...sourceRow,
+      id: Math.random().toString(),
+    };
+    copy.splice(idx + 1, 0, duplicatedRow);
+    onChange(copy);
   };
 
   const handleUpdate = (idx: number, key: string, value: any) => {
@@ -241,6 +264,14 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                     title="Bajar"
                   >
                     <ChevronDown size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDuplicate(idx)}
+                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md active:bg-blue-100"
+                    title="Duplicar fila"
+                  >
+                    <Copy size={16} />
                   </button>
                   {customTokens.length > 0 && (
                     <button
@@ -435,6 +466,14 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                       title="Bajar"
                     >
                       <ChevronDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicate(idx)}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      title="Duplicar fila"
+                    >
+                      <Copy size={14} />
                     </button>
                     {customTokens.length > 0 && (
                       <button
