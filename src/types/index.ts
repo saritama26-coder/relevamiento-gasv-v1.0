@@ -11,6 +11,7 @@ export interface ConstructivoRow {
   cantidadDerivada?: string;
   cantidadManual?: boolean;
   motivoCantidadManual?: string;
+  porVerificar?: boolean;
 }
 
 export interface EquipamientoRow {
