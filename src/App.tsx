@@ -1023,7 +1023,7 @@ export default function App() {
             <div className="flex items-center space-x-3.5">
               <div className="flex items-center shrink-0">
                 <img
-                  src={`${(import.meta.env?.BASE_URL || '/').replace(/\/$/, '')}/gasv-logo.png`}
+                  src={GSARITAMA_HEADER_LOGO}
                   alt="GSARITAMA ARQ."
                   className="h-11 w-auto max-w-[190px] object-contain block select-none"
                 />
