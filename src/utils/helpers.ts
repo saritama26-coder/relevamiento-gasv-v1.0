@@ -803,6 +803,7 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
       }
     });
     (f.cons || []).forEach((row) => {
+      if (row.porVerificar) traceProblems.push(`${f.codigo || f.ambiente}: elemento ${row.elemento || 'constructivo'} marcado por verificar.`);
       const parsed = parseDimensions(row.dimension || '');
       if (parsed && !row.cantidadManual) {
         const amount = Number(String(row.cantidad || '').replace(',', '.'));
