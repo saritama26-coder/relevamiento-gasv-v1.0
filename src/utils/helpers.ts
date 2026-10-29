@@ -497,6 +497,7 @@ export function calculateFinishesTotals(ficha: Ficha): { ceramicaTotal: number; 
   const normalize = (v: string) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
   const sumRows = (rows: any[], family: 'ceramica' | 'pintura') =>
     (rows || []).reduce((sum, row) => {
+      if (row.porVerificar) return sum;
       const text = normalize(`${row.elemento || ''} ${row.descripcion || ''} ${row.patologia || ''} ${row.actividad || ''}`);
       const unit = normalize(row.unidad || '');
       const isMatch = family === 'ceramica'
