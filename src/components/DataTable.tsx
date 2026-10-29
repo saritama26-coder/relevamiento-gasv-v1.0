@@ -247,8 +247,8 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
     }
 
     // Si se modifica 'dimension' en elementos con unidad 'm²', calcular largo * ancho automáticamente
-    if (key === 'dimension' && (updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2' || !updatedRow.unidad)) {
-      const s = String(value || '').trim();
+    if ((key === 'dimension' || key === 'unidad') && (updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2' || !updatedRow.unidad)) {
+      const s = String(updatedRow.dimension || '').trim();
       const match = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*([xX*×])\s*([0-9]+(?:\.[0-9]+)?)\s*m?$/);
       if (match) {
         const l = parseFloat(match[1]);
