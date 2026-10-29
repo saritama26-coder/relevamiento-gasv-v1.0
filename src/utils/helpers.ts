@@ -767,6 +767,14 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
     const links = new Set<string>();
     (f.cuan || []).forEach((q, idx) => {
       if (q.porVerificar) traceProblems.push(`${f.codigo || f.ambiente}: cuantificación ${q.elemento || idx + 1} marcada por verificar.`);
+      if (q.origenAcabado && !q.cantidadManual) {
+        const finishTotals = calculateFinishesTotals(f);
+        const expected = q.origenAcabado === 'pintura' ? finishTotals.pinturaTotal : finishTotals.ceramicaTotal;
+        const actual = Number(String(q.cantidad || '').replace(',', '.'));
+        if (!Number.isFinite(actual) || Math.abs(actual - expected) > 0.004) {
+          traceProblems.push(`${f.codigo || f.ambiente}: total de ${q.origenAcabado} en sección 8 no coincide con los elementos fuente (${expected.toFixed(2)} m²).`);
+        }
+      }
       if (q.origenPatologiaId) {
         if (links.has(q.origenPatologiaId)) traceProblems.push(`${f.codigo || f.ambiente}: actividad duplicada enlazada a patología (${q.elemento || 'Elemento'}).`);
         links.add(q.origenPatologiaId);
