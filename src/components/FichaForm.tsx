@@ -783,7 +783,7 @@ export function FichaForm({
           <div>
             <label className="text-xs font-bold text-gray-500">Estado general de conservación</label>
             <select
-              className="w-full p-2 border rounded bg-gray-50"
+              className="w-full p-2 border rounded"
               value={worstSeverityInfo.estado}
               disabled
               title="El estado se calcula desde la severidad máxima de las patologías registradas."
