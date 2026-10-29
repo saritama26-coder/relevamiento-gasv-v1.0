@@ -509,13 +509,18 @@ export function calculateFinishesTotals(ficha: Ficha): { ceramicaTotal: number; 
 
   // Evita contar dos veces la misma superficie: se prioriza el inventario constructivo.
   // Las patologías solo sirven como fuente alternativa cuando no existe un elemento de ese acabado.
+  const hasConsFamily = (family: 'ceramica' | 'pintura') =>
+    (ficha.cons || []).some((row) => {
+      const text = normalize(`${row.elemento || ''} ${row.descripcion || ''}`);
+      return family === 'ceramica' ? /ceramica|porcelanato|azulejo/.test(text) : /pintura|esmalte|latex/.test(text);
+    });
   const consCeramica = sumRows(ficha.cons || [], 'ceramica');
   const patCeramica = sumRows(ficha.pat || [], 'ceramica');
   const consPintura = sumRows(ficha.cons || [], 'pintura');
   const patPintura = sumRows(ficha.pat || [], 'pintura');
   return {
-    ceramicaTotal: parseFloat((consCeramica > 0 ? consCeramica : patCeramica).toFixed(2)),
-    pinturaTotal: parseFloat((consPintura > 0 ? consPintura : patPintura).toFixed(2)),
+    ceramicaTotal: parseFloat(((hasConsFamily('ceramica') ? consCeramica : patCeramica)).toFixed(2)),
+    pinturaTotal: parseFloat(((hasConsFamily('pintura') ? consPintura : patPintura)).toFixed(2)),
   };
 }
 
