@@ -875,7 +875,7 @@ export default function App() {
     const c: Record<string, number> = { Bueno: 0, Regular: 0, Malo: 0, Crítico: 0 };
     fichas.forEach((f) => {
       area += calculateArea(f);
-      const st = f.estadoDimensional || f.diagestado || 'Regular';
+      const st = getWorstSeverityState(f.pat || []).estado;
       if (c[st] !== undefined) c[st]++;
     });
     return { area, c };
@@ -1460,11 +1460,11 @@ export default function App() {
                     <div className="flex justify-between items-center text-slate-500 ml-5 text-[11px]">
                       <span>{item.bloque || projectData.bloque} · {item.nivel || 'N/A'}</span>
                       <span className={`font-semibold ${
-                        item.diagestado === 'Crítico' ? 'text-red-600' :
-                        item.diagestado === 'Malo' ? 'text-orange-600' :
-                        item.diagestado === 'Regular' ? 'text-yellow-600' : 'text-green-600'
+                        getWorstSeverityState(item.pat || []).estado === 'Crítico' ? 'text-red-600' :
+                        getWorstSeverityState(item.pat || []).estado === 'Malo' ? 'text-orange-600' :
+                        getWorstSeverityState(item.pat || []).estado === 'Regular' ? 'text-yellow-600' : 'text-green-600'
                       }`}>
-                        {item.diagestado || 'Regular'}
+                        {getWorstSeverityState(item.pat || []).estado}
                       </span>
                     </div>
                   </div>
@@ -1513,7 +1513,7 @@ export default function App() {
                       <td className="p-1.5 border border-gray-300">{item.bloque || projectData.bloque}</td>
                       <td className="p-1.5 border border-gray-300">{item.nivel}</td>
                       <td className="p-1.5 border border-gray-300 text-right">{calculateArea(item).toFixed(2)}</td>
-                      <td className="p-1.5 border border-gray-300">{item.estadoDimensional || item.diagestado}</td>
+                      <td className="p-1.5 border border-gray-300">{getWorstSeverityState(item.pat || []).estado}</td>
                     </tr>
                   ))}
                   {fichas.length === 0 && (
