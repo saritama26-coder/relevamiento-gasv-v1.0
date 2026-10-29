@@ -27,6 +27,10 @@ const linkTags = [...html.matchAll(/<link\b([^>]*?)href=(["'])(.*?)\2([^>]*)>/gi
 for (const match of linkTags.reverse()) {
   const attrs = (match[1] || '') + ' ' + (match[4] || '');
   const assetPath = localAssetPath(match[3]);
+  if (/\brel=(["'])modulepreload\1/i.test(attrs)) {
+    html = html.replace(match[0], '');
+    continue;
+  }
   if (!assetPath) continue;
   if (/\brel=(["'])stylesheet\1/i.test(attrs)) {
     const css = await readFile(assetPath, 'utf8');
@@ -46,8 +50,12 @@ for (const match of linkTags.reverse()) {
   }
 }
 
-if (/<script\b[^>]*\bsrc=/i.test(html) || /<link\b[^>]*\brel=(["'])stylesheet\1/i.test(html)) {
-  throw new Error('Quedaron referencias externas de JavaScript o CSS; no se generó el HTML autónomo.');
+// Examinar el marcado HTML, no cadenas que pudieran aparecer dentro del JS inline.
+const htmlMarkupOnly = html.replace(/<script\b(?![^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script>/gi, '');
+const remainingScripts = [...htmlMarkupOnly.matchAll(/<script\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi)].map((m) => m[0]);
+const remainingStyles = [...htmlMarkupOnly.matchAll(/<link\b[^>]*\brel=(["'])stylesheet\1[^>]*>/gi)].map((m) => m[0]);
+if (remainingScripts.length || remainingStyles.length) {
+  throw new Error(`Quedaron referencias externas de JavaScript o CSS; no se generó el HTML autónomo. Scripts: ${remainingScripts.join(' | ') || 'ninguno'}. Hojas: ${remainingStyles.join(' | ') || 'ninguna'}.`);
 }
 
 const outputPath = path.join(distDir, 'Relevamiento_Arquitectonico_GASV_autonomo.html');
