@@ -246,21 +246,25 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
       }
     }
 
-    // Si se modifica 'dimension' en elementos con unidad 'm²', calcular largo * ancho automáticamente
+    // Si la dimensión de una superficie es válida se calcula; si queda mal formada, se marca pendiente.
     if ((key === 'dimension' || key === 'unidad') && (updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2' || !updatedRow.unidad)) {
       const s = String(updatedRow.dimension || '').trim();
-      const match = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*([xX*×])\s*([0-9]+(?:\.[0-9]+)?)\s*m?$/);
+      const match = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*([xX*×])\s*([0-9]+(?:\.[0-9]+)?)\s*m$/);
       if (match) {
         const l = parseFloat(match[1]);
         const a = parseFloat(match[3]);
         if (Number.isFinite(l) && Number.isFinite(a) && l > 0 && a > 0) {
           const derived = (l * a).toFixed(2);
-          updatedRow.cantidad = derived;
+          if (!updatedRow.cantidadManual) updatedRow.cantidad = derived;
           updatedRow.cantidadDerivada = derived;
-          updatedRow.cantidadCalculada = true;
-          updatedRow.cantidadManual = false;
-          updatedRow.motivoCantidadManual = '';
+          updatedRow.cantidadCalculada = !updatedRow.cantidadManual;
+          updatedRow.porVerificar = false;
+          if (!updatedRow.cantidadManual) updatedRow.motivoCantidadManual = '';
           if (!updatedRow.unidad) updatedRow.unidad = 'm²';
+        }
+      } else if (s || key === 'dimension') {
+        if (updatedRow.cantidadCalculada || updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2') {
+          updatedRow.porVerificar = true;
         }
       }
     }
