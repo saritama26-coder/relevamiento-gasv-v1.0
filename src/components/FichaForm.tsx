@@ -291,23 +291,71 @@ export function FichaForm({
   };
 
   const handlePasarSeccion8 = () => {
-    const cuanCopia = [...ficha.cuan];
+      const normalize = (value: string) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    const cabinasSinPuertas = (ficha.cons || []).some((row) => {
+      const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
+      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no hay puertas?)/.test(text);
+    });
+    const contradicePuertas = (ficha.pat || []).some((p) => {
+      const text = normalize(`${p.elemento} ${p.patologia} ${p.intervencion}`);
+      return text.includes('puerta') && text.includes('cabina') && /(mantenimiento|reparacion|reposicion|cambio)/.test(text);
+    });
+    if (cabinasSinPuertas && contradicePuertas) {
+      alert('No se generó la cuantificación: el levantamiento indica que las cabinas no tienen puertas, pero existe una patología/actividad relacionada con puertas de cabinas. Verifique los datos.');
+      return;
+    }
+
+    const cuanCopia = [...(ficha.cuan || [])];
+    let generated = 0;
     ficha.pat.forEach((p) => {
-      if (p.elemento && p.patologia) {
+      if (!p.elemento || !p.patologia) return;
+      const actividad = `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`.trim();
+      const estado = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
+      const prioridad = p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja';
+      let existingIdx = p.id ? cuanCopia.findIndex((row) => row.origenPatologiaId === p.id) : -1;
+      if (existingIdx < 0) {
+        existingIdx = cuanCopia.findIndex((row) => {
+          const rowText = normalize(row.actividad || '');
+          return normalize(row.elemento) === normalize(p.elemento) &&
+            rowText.includes(normalize(p.patologia)) &&
+            rowText.includes(normalize(p.intervencion || 'reparacion')) &&
+            !row.origenPatologiaId;
+        });
+      }
+      if (existingIdx >= 0) {
+        const existing = cuanCopia[existingIdx];
+        cuanCopia[existingIdx] = {
+          ...existing,
+          codigo: ficha.codigo,
+          elemento: p.elemento,
+          actividad,
+          unidad: p.unidad,
+          estado,
+          prioridad,
+          origenPatologiaId: p.id || existing.origenPatologiaId,
+          ...(existing.cantidadManual ? {} : { cantidad: p.cantidad, cantidadCalculada: true, cantidadDerivada: p.cantidad }),
+        };
+      } else {
         cuanCopia.push({
           id: Math.random().toString(),
           codigo: ficha.codigo,
           elemento: p.elemento,
-          actividad: `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`,
+          actividad,
           cantidad: p.cantidad,
+          cantidadCalculada: true,
+          cantidadDerivada: p.cantidad,
+          cantidadManual: false,
           unidad: p.unidad,
-          estado: p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular',
-          prioridad: p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja',
+          estado,
+          prioridad,
+          origenPatologiaId: p.id,
         });
       }
+      generated++;
     });
-    onChange({ cuan: cuanCopia });
-    alert(`${ficha.pat.length} actividades generadas. Revise y ajuste en la Sección 8.`);
+    const state = getWorstSeverityState(ficha.pat || []).estado;
+    onChange({ cuan: cuanCopia, estadoDimensional: state, diagestado: state });
+    alert(`${generated} actividad(es) sincronizada(s) con las patologías, sin duplicar las ya enlazadas. Revise la Sección 8.`);
   };
 
   const areaCalculada = useMemo(() => calculateArea(ficha).toFixed(2), [ficha]);
@@ -386,7 +434,35 @@ export function FichaForm({
       return newRow;
     });
 
-    onChange({ pat: updated });
+    const nextCuan = [...(ficha.cuan || [])];
+    updated.forEach((p) => {
+      if (!p.elemento || !p.patologia) return;
+      let qIdx = p.id ? nextCuan.findIndex((row) => row.origenPatologiaId === p.id) : -1;
+      if (qIdx < 0) {
+        const normalize = (v: string) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+        qIdx = nextCuan.findIndex((row) =>
+          !row.cantidadManual &&
+          normalize(row.elemento) === normalize(p.elemento) &&
+          normalize(row.actividad).includes(normalize(p.patologia)) &&
+          normalize(row.actividad).includes(normalize(p.intervencion || 'reparacion'))
+        );
+      }
+      if (qIdx >= 0 && !nextCuan[qIdx].cantidadManual) {
+        const state = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
+        nextCuan[qIdx] = {
+          ...nextCuan[qIdx],
+          cantidad: p.cantidad,
+          cantidadCalculada: true,
+          cantidadDerivada: p.cantidad,
+          unidad: p.unidad,
+          estado: state,
+          prioridad: p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja',
+          origenPatologiaId: p.id || nextCuan[qIdx].origenPatologiaId,
+        };
+      }
+    });
+    const state = getWorstSeverityState(updated).estado;
+    onChange({ pat: updated, cuan: nextCuan, estadoDimensional: state, diagestado: state });
   };
 
   const handleGenericElemTableChange = (key: 'cons' | 'equip' | 'elec' | 'hidro', newData: any[]) => {
@@ -612,9 +688,10 @@ export function FichaForm({
           <div>
             <label className="text-xs font-bold text-gray-500">Estado general de conservación</label>
             <select
-              className="w-full p-2 border rounded"
-              value={ficha.estadoDimensional || ficha.diagestado || 'Bueno'}
-              onChange={(e) => onChange({ estadoDimensional: e.target.value, diagestado: e.target.value })}
+              className="w-full p-2 border rounded bg-gray-50"
+              value={worstSeverityInfo.estado}
+              disabled
+              title="El estado se calcula desde la severidad máxima de las patologías registradas."
             >
               {ESTADOS.map((st) => (
                 <option key={st} value={st}>
@@ -662,11 +739,11 @@ export function FichaForm({
           data={ficha.cons}
           onChange={(newData) => handleGenericElemTableChange('cons', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem', catalogClosed: true },
             { key: 'descripcion', label: 'Descripción', type: 'text' },
             { key: 'dimension', label: 'Dimensión', type: 'text' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -682,10 +759,10 @@ export function FichaForm({
           data={ficha.equip}
           onChange={(newData) => handleGenericElemTableChange('equip', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem', catalogClosed: true },
             { key: 'descripcion', label: 'Descripción', type: 'text' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -701,9 +778,9 @@ export function FichaForm({
           data={ficha.elec}
           onChange={(newData) => handleGenericElemTableChange('elec', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem', catalogClosed: true },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '15%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '15%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '20%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -719,9 +796,9 @@ export function FichaForm({
           data={ficha.hidro}
           onChange={(newData) => handleGenericElemTableChange('hidro', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem', catalogClosed: true },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '15%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '15%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '20%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -746,11 +823,11 @@ export function FichaForm({
           data={ficha.pat}
           onChange={handlePatTableChange}
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem' },
-            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos' },
-            { key: 'ubicacion', label: 'Ubicación', type: 'text', dataListId: 'list-pat-ubic' },
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', catalogClosed: true },
+            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', catalogClosed: true },
+            { key: 'ubicacion', label: 'Ubicación', type: 'text', dataListId: 'list-pat-ubic', catalogClosed: true },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '15%' },
             { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES },
           ]}
@@ -918,10 +995,10 @@ export function FichaForm({
           onChange={(newData) => onChange({ cuan: newData })}
           columns={[
             { key: 'codigo', label: 'Código', type: 'text', width: '10%' },
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-pat-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-pat-elem', catalogClosed: true },
             { key: 'actividad', label: 'Trabajo a ejecutar', type: 'text' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
             { key: 'prioridad', label: 'Prioridad', type: 'select', options: PRIORIDADES, width: '15%' },
           ]}
