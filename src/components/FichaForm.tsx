@@ -485,7 +485,79 @@ export function FichaForm({
       }
       return newRow;
     });
-    onChange({ [key]: updated });
+    if (key !== 'cons') {
+      onChange({ [key]: updated });
+      return;
+    }
+
+    // Sincroniza únicamente cuantificaciones de pintura/cerámica asociadas al elemento fuente.
+    // Las cantidades manuales se conservan como excepciones auditadas.
+    const normalize = (value: string) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    const nextCuan = [...(ficha.cuan || [])];
+    updated.forEach((row) => {
+      const text = normalize(`${row.elemento || ''} ${row.descripcion || ''}`);
+      const family = /pintura|esmalte|latex/.test(text) ? 'pintura' : /ceramica|porcelanato|azulejo/.test(text) ? 'ceramica' : '';
+      if (!family) return;
+
+      const sourceQty = parseFloat(String(row.cantidad || '').replace(',', '.'));
+      const hasValidQty = Number.isFinite(sourceQty) && sourceQty > 0 && ['m²', 'm2'].includes(normalize(row.unidad).replace('²', '2'));
+      let qIdx = row.id ? nextCuan.findIndex((q) => q.origenConstructivoId === row.id) : -1;
+      if (qIdx < 0 && hasValidQty) {
+        qIdx = nextCuan.findIndex((q) => {
+          if (q.origenConstructivoId || q.cantidadManual) return false;
+          const qText = normalize(`${q.elemento || ''} ${q.actividad || ''}`);
+          const qFamily = /pintura|esmalte|latex/.test(qText) ? 'pintura' : /ceramica|porcelanato|azulejo/.test(qText) ? 'ceramica' : '';
+          const qQty = parseFloat(String(q.cantidad || '').replace(',', '.'));
+          return qFamily === family && Math.abs(qQty - sourceQty) < 0.005 && normalize(q.unidad).replace('²', '2') === 'm2';
+        });
+      }
+
+      const canonicalElement = family === 'pintura' ? 'Pintura en paredes' : (row.elemento || 'Cerámica');
+      const activity = family === 'pintura'
+        ? `Cuantificación de pintura derivada de ${row.elemento || 'elemento constructivo'}`
+        : `Cuantificación de cerámica derivada de ${row.elemento || 'elemento constructivo'}`;
+      const derivedValue = hasValidQty ? sourceQty.toFixed(2) : '';
+      const inheritedManual = Boolean(row.cantidadManual);
+
+      if (qIdx >= 0) {
+        const current = nextCuan[qIdx];
+        nextCuan[qIdx] = {
+          ...current,
+          elemento: current.elemento || canonicalElement,
+          actividad: current.actividad || activity,
+          origenConstructivoId: row.id || current.origenConstructivoId,
+          unidad: 'm²',
+          porVerificar: !hasValidQty,
+          ...(current.cantidadManual ? {} : {
+            cantidad: derivedValue,
+            cantidadCalculada: hasValidQty,
+            cantidadDerivada: derivedValue,
+            cantidadManual: inheritedManual,
+            motivoCantidadManual: inheritedManual ? row.motivoCantidadManual : '',
+          }),
+        };
+      } else {
+        nextCuan.push({
+          id: Math.random().toString(),
+          codigo: ficha.codigo,
+          elemento: canonicalElement,
+          actividad,
+          cantidad: derivedValue,
+          cantidadCalculada: hasValidQty,
+          cantidadDerivada: derivedValue,
+          cantidadManual: inheritedManual,
+          motivoCantidadManual: inheritedManual ? row.motivoCantidadManual : '',
+          unidad: 'm²',
+          estado: row.estado || getWorstSeverityState(ficha.pat || []).estado,
+          prioridad: priorityFromState(row.estado || getWorstSeverityState(ficha.pat || []).estado),
+          origenConstructivoId: row.id,
+          porVerificar: !hasValidQty,
+        });
+      }
+    });
+
+    const currentState = getWorstSeverityState(ficha.pat || []).estado;
+    onChange({ cons: updated, cuan: nextCuan, estadoDimensional: currentState, diagestado: currentState });
   };
 
   const fotoCount = Array.isArray(ficha.fotos) ? ficha.fotos.length : 0;
