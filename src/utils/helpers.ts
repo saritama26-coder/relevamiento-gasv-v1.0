@@ -670,12 +670,12 @@ export function getFichaBlockingErrors(ficha: Ficha, previousFicha?: Ficha): str
 
   const cabinasSinPuertas = (ficha.cons || []).some((row) => {
     const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
-    return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no hay puertas?)/.test(text);
+    return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no tienen puertas?|no hay puertas?|carecen de puertas?)/.test(text);
   });
   const hasCabinDoorConflict = (candidate: Ficha) => {
     const noDoors = (candidate.cons || []).some((row) => {
       const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
-      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no hay puertas?)/.test(text);
+      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no tienen puertas?|no hay puertas?|carecen de puertas?)/.test(text);
     });
     if (!noDoors) return false;
     return [...(candidate.cuan || []), ...(candidate.pat || [])].some((row: any) => {
