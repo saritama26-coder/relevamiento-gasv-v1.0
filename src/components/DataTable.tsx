@@ -47,9 +47,9 @@ function CatalogInput({ value, options, onChange, className, closed = false }: C
   const inputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const lastValidValueRef = useRef(value ?? '');
+  const normalizeOption = (input: string) => String(input || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
 
   useEffect(() => {
-    const normalizeOption = (input: string) => String(input || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
     const matchingOption = options.find((option) => normalizeOption(option) === normalizeOption(String(value ?? '')));
     if (matchingOption) lastValidValueRef.current = matchingOption;
   }, [value, options]);
@@ -58,7 +58,7 @@ function CatalogInput({ value, options, onChange, className, closed = false }: C
     const rect = inputRef.current?.getBoundingClientRect();
     if (!rect || typeof window === 'undefined') return;
     const maxHeight = Math.min(260, Math.max(100, window.innerHeight - 24));
-    const estimatedHeight = Math.min(Math.max(options.length * 34 + 8, 44), maxHeight);
+    const estimatedHeight = Math.min(Math.max(normalizedOptions.length * 34 + 8, 44), maxHeight);
     const above = window.innerHeight - rect.bottom < estimatedHeight && rect.top > estimatedHeight;
     const top = above
       ? Math.max(8, rect.top - estimatedHeight - 4)
@@ -105,11 +105,12 @@ function CatalogInput({ value, options, onChange, className, closed = false }: C
     };
   }, [open]);
 
-  const filteredOptions = options.filter((option) => {
+  const normalizedOptions = options.filter((option, index, all) =>
+    all.findIndex((candidate) => normalizeOption(candidate) === normalizeOption(option)) === index
+  );
+  const filteredOptions = normalizedOptions.filter((option) => {
     if (!filter.trim()) return true;
-    const normOption = option.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const normFilter = filter.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return normOption.includes(normFilter);
+    return normalizeOption(option).includes(normalizeOption(filter));
   });
 
   return (
@@ -124,7 +125,6 @@ function CatalogInput({ value, options, onChange, className, closed = false }: C
           onFocus={() => openMenu(true)}
           onBlur={() => {
             if (closed) {
-              const normalizeOption = (input: string) => String(input || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
               const matchingOption = options.find((option) => normalizeOption(option) === normalizeOption(String(value ?? '')));
               onChange(matchingOption || lastValidValueRef.current);
             }
