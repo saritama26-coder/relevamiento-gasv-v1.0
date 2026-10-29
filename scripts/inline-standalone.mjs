@@ -24,7 +24,9 @@ for (const match of scriptTags.reverse()) {
   const safeSource = source.replace(/<\/script/gi, '<\\/script');
   const isModule = /\btype=(["'])module\1/i.test(attrs);
   const inlineTag = isModule ? `<script type="module">\n${safeSource}\n</script>` : `<script>\n${safeSource}\n</script>`;
-  html = html.replace(match[0], inlineTag);
+  const index = match.index ?? -1;
+  if (index < 0) throw new Error('No se pudo localizar la etiqueta de script en el HTML.');
+  html = html.slice(0, index) + inlineTag + html.slice(index + match[0].length);
 }
 
 const linkTags = [...html.matchAll(/<link\b([^>]*?)href=(["'])(.*?)\2([^>]*)>/gis)];
