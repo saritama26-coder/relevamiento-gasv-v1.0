@@ -178,7 +178,7 @@ export function exportCSV(fichas: Ficha[], projectData: ProjectData, porVerifica
   }
 
   rows.push([
-    'Proyecto', 'Ubicación', 'Bloque', 'Nivel', 'Ambiente', 'Código', 'Elemento', 'Actividad', 'Cantidad', 'Unidad', 'Estado', 'Prioridad'
+    'Proyecto', 'Ubicación', 'Bloque', 'Nivel', 'Ambiente', 'Código', 'Elemento', 'Actividad', 'Cantidad', 'Unidad', 'Estado', 'Prioridad', 'Verificación'
   ]);
 
   fichas.forEach((ficha) => {
@@ -196,7 +196,8 @@ export function exportCSV(fichas: Ficha[], projectData: ProjectData, porVerifica
           item.cantidad || '',
           item.unidad || '',
           item.estado || '',
-          item.prioridad || ''
+          item.prioridad || '',
+          item.porVerificar ? 'POR VERIFICAR' : item.cantidadManual ? `MODIFICADO MANUALMENTE: ${item.motivoCantidadManual || 'motivo no consignado'}` : ''
         ]);
       }
     });
