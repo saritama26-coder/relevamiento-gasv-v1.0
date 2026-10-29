@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import { Printer, X, FileText, Layers, Check } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
-import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist } from '../utils/helpers';
+import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist, getWorstSeverityState } from '../utils/helpers';
 import { GSARITAMA_HEADER_LOGO } from '../constants/logoData';
 
 interface ConsolidatedReportProps {
@@ -139,7 +139,7 @@ export function ConsolidatedReport({
     const c: Record<string, number> = { Bueno: 0, Regular: 0, Malo: 0, Crítico: 0 };
     sortedFichas.forEach((f) => {
       total += calculateArea(f);
-      const st = f.estadoDimensional || f.diagestado || 'Regular';
+      const st = getWorstSeverityState(f.pat || []).estado;
       if (c[st] !== undefined) c[st]++;
     });
     return { areaTotal: total, counts: c };
@@ -568,14 +568,14 @@ export function ConsolidatedReport({
                 </h3>
                 <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-3 rounded border border-slate-200">
                   <div>
-                    <span className="font-bold text-slate-600">Estado general:</span> {f.estadoDimensional || f.diagestado || 'No consignado'}
+                    <span className="font-bold text-slate-600">Estado general:</span> {getWorstSeverityState(f.pat || []).estado}
                   </div>
                   <div>
                     <span className="font-bold text-slate-600">Intervención recomendada:</span> {f.interv || 'No consignada'}
                   </div>
                   <div className="col-span-2">
                     <span className="font-bold text-slate-600">Observaciones generales:</span>
-                    <p className="mt-1 whitespace-pre-wrap">{f.obs || f.diag || f.obsdim || 'Sin observaciones'}</p>
+                    <p className="mt-1 whitespace-pre-wrap">{`Estado del diagnóstico: ${getWorstSeverityState(f.pat || []).estado}.\n`}{f.obs || f.diag || f.obsdim || 'Sin observaciones'}</p>
                   </div>
                 </div>
               </div>
