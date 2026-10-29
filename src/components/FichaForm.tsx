@@ -328,7 +328,7 @@ export function FichaForm({
           ...existing,
           codigo: ficha.codigo,
           elemento: p.elemento,
-          actividad: activity,
+          actividad,
           unidad: p.unidad,
           estado,
           prioridad,
