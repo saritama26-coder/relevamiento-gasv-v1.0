@@ -31,6 +31,9 @@ import {
   calculatePerimeter,
   priorityFromState,
   lookupReference,
+  calculateFinishesTotals,
+  getWorstSeverityState,
+  getFichaValidationWarnings,
 } from '../utils/helpers';
 
 export const SUGGESTED_PHOTOS_TARGET = 4;
@@ -414,6 +417,10 @@ export function FichaForm({
   const hasZeroPhotos = fotoCount === 0;
   const hasMetPhotoTarget = fotoCount >= SUGGESTED_PHOTOS_TARGET;
 
+  const finishesTotals = useMemo(() => calculateFinishesTotals(ficha), [ficha]);
+  const worstSeverityInfo = useMemo(() => getWorstSeverityState(ficha.pat), [ficha.pat]);
+  const validationWarnings = useMemo(() => getFichaValidationWarnings(ficha), [ficha]);
+
   const handleFinalizarClick = () => {
     if (codigoMissing || ambienteMissing) {
       alert('Por favor complete el Código y el Nombre de Ambiente antes de finalizar.');
@@ -427,6 +434,14 @@ export function FichaForm({
         document.getElementById('seccion-registro-fotografico')?.scrollIntoView({ behavior: 'smooth' });
         return;
       }
+    }
+    if (validationWarnings.length > 0) {
+      const summaryText = validationWarnings.slice(0, 3).map((w) => `• ${w}`).join('\n');
+      const moreCount = validationWarnings.length > 3 ? `\n• ...y ${validationWarnings.length - 3} aviso(s) más.` : '';
+      const proceed = confirm(
+        `⚠️ Avisos informativos de revisión técnica (${validationWarnings.length}):\n\n${summaryText}${moreCount}\n\n¿Deseas finalizar y guardar el ambiente de todos modos?`
+      );
+      if (!proceed) return;
     }
     if (onFinalizarAmbiente) {
       onFinalizarAmbiente();
@@ -607,6 +622,18 @@ export function FichaForm({
                 </option>
               ))}
             </select>
+            {ficha.pat.length > 0 && worstSeverityInfo.estado && (ficha.estadoDimensional || ficha.diagestado) !== worstSeverityInfo.estado && (
+              <div className="mt-1.5 flex items-center justify-between text-[11px] text-amber-800 bg-amber-50 p-1.5 rounded border border-amber-200">
+                <span>Peor severidad: <strong>{worstSeverityInfo.severidadMax}</strong> ({worstSeverityInfo.estado})</span>
+                <button
+                  type="button"
+                  onClick={() => onChange({ estadoDimensional: worstSeverityInfo.estado, diagestado: worstSeverityInfo.estado })}
+                  className="px-2 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded font-bold transition-colors cursor-pointer text-[10px]"
+                >
+                  Sincronizar a {worstSeverityInfo.estado}
+                </button>
+              </div>
+            )}
           </div>
 
           <div>
@@ -735,6 +762,61 @@ export function FichaForm({
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           8. Cuantificación preliminar
         </h2>
+
+        {/* Totales sumados automáticamente de cerámica y pintura */}
+        {(finishesTotals.ceramicaTotal > 0 || finishesTotals.pinturaTotal > 0) && (
+          <div className="print:hidden mb-4 p-3 bg-blue-50/80 border border-blue-200 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-slate-700">
+              <strong className="text-blue-950">Totales calculados de acabados:</strong>{' '}
+              {finishesTotals.ceramicaTotal > 0 && <span>Cerámica: <strong className="text-blue-900">{finishesTotals.ceramicaTotal.toFixed(2)} m²</strong> </span>}
+              {finishesTotals.pinturaTotal > 0 && <span>· Pintura: <strong className="text-blue-900">{finishesTotals.pinturaTotal.toFixed(2)} m²</strong></span>}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {finishesTotals.ceramicaTotal > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const row = {
+                      id: Math.random().toString(),
+                      codigo: ficha.codigo,
+                      elemento: 'Cerámica',
+                      actividad: 'Reposición / reparación de cerámica según alcance',
+                      cantidad: finishesTotals.ceramicaTotal.toFixed(2),
+                      unidad: 'm²',
+                      estado: ficha.estadoDimensional || 'Bueno',
+                      prioridad: priorityFromState(ficha.estadoDimensional || 'Bueno'),
+                    };
+                    onChange({ cuan: [...ficha.cuan, row] });
+                  }}
+                  className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 rounded font-semibold transition-colors cursor-pointer text-xs"
+                >
+                  + Agregar Cerámica ({finishesTotals.ceramicaTotal.toFixed(2)} m²)
+                </button>
+              )}
+              {finishesTotals.pinturaTotal > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const row = {
+                      id: Math.random().toString(),
+                      codigo: ficha.codigo,
+                      elemento: 'Pintura',
+                      actividad: 'Pintura y resanes de superficies según alcance',
+                      cantidad: finishesTotals.pinturaTotal.toFixed(2),
+                      unidad: 'm²',
+                      estado: ficha.estadoDimensional || 'Bueno',
+                      prioridad: priorityFromState(ficha.estadoDimensional || 'Bueno'),
+                    };
+                    onChange({ cuan: [...ficha.cuan, row] });
+                  }}
+                  className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 rounded font-semibold transition-colors cursor-pointer text-xs"
+                >
+                  + Agregar Pintura ({finishesTotals.pinturaTotal.toFixed(2)} m²)
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Asistente */}
         <div className="print:hidden mb-5 bg-slate-50 border border-slate-200 rounded p-4">
@@ -1139,6 +1221,26 @@ export function FichaForm({
           </div>
         </div>
       </div>
+
+      {/* Panel Informativo de Validaciones y Coherencia Técnica */}
+      {validationWarnings.length > 0 && (
+        <div className="print:hidden bg-amber-50/90 border border-amber-300 rounded-xl p-4 shadow-2xs space-y-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={17} className="text-amber-700 shrink-0" />
+            <h3 className="text-xs sm:text-sm font-bold text-amber-950">
+              Avisos informativos de coherencia técnica ({validationWarnings.length})
+            </h3>
+          </div>
+          <p className="text-[11px] text-amber-800">
+            Los siguientes puntos se señalan como sugerencia preventiva para evitar discrepancias en el relevamiento. Son únicamente informativos y no modifican datos existentes:
+          </p>
+          <ul className="text-xs text-amber-900 space-y-1 pl-4 list-disc">
+            {validationWarnings.map((warning, i) => (
+              <li key={i}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Barra de acción: Finalizar Relevamiento del Ambiente */}
       <div className="bg-gradient-to-r from-[#17365d] to-[#286b9e] text-white p-4 sm:p-5 rounded-xl shadow-md print:hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

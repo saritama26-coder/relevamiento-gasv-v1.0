@@ -96,9 +96,12 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
     };
   }, [open]);
 
-  const filteredOptions = options.filter((option) =>
-    !filter.trim() || option.toLocaleLowerCase('es').includes(filter.trim().toLocaleLowerCase('es'))
-  );
+  const filteredOptions = options.filter((option) => {
+    if (!filter.trim()) return true;
+    const normOption = option.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normFilter = filter.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return normOption.includes(normFilter);
+  });
 
   return (
     <>
@@ -197,6 +200,10 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
     columns.forEach((col) => {
       newRow[col.key] = col.key === 'ubicacion' ? 'General' : '';
     });
+    // Si la unidad es 'u' o 'pza', inicializar cantidad en '1.00'
+    if (newRow.unidad === 'u' || newRow.unidad === 'pza') {
+      newRow.cantidad = '1.00';
+    }
     onChange([...data, newRow]);
   };
 
@@ -213,7 +220,31 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
 
   const handleUpdate = (idx: number, key: string, value: any) => {
     const copy = [...data];
-    copy[idx] = { ...copy[idx], [key]: value };
+    let updatedRow = { ...copy[idx], [key]: value };
+
+    // Al seleccionar unidad 'u' o 'pza', si la cantidad está vacía o en 0, inicializar en '1.00'
+    if (key === 'unidad' && (value === 'u' || value === 'pza')) {
+      const q = String(updatedRow.cantidad ?? '').trim();
+      if (!q || q === '0' || q === '0.00') {
+        updatedRow.cantidad = '1.00';
+      }
+    }
+
+    // Si se modifica 'dimension' en elementos con unidad 'm²', calcular largo * ancho automáticamente
+    if (key === 'dimension' && (updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2' || !updatedRow.unidad)) {
+      const s = String(value || '').replace(/\s*(m|ml|mts)\b/gi, '').trim();
+      const match = s.match(/^([0-9]+(?:[.,][0-9]+)?)\s*([xX*×])\s*([0-9]+(?:[.,][0-9]+)?)$/);
+      if (match) {
+        const l = parseFloat(match[1].replace(',', '.'));
+        const a = parseFloat(match[3].replace(',', '.'));
+        if (!isNaN(l) && !isNaN(a) && l > 0 && a > 0) {
+          updatedRow.cantidad = (l * a).toFixed(2);
+          if (!updatedRow.unidad) updatedRow.unidad = 'm²';
+        }
+      }
+    }
+
+    copy[idx] = updatedRow;
     onChange(copy);
   };
 

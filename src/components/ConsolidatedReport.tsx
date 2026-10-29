@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import { Printer, X, FileText, Layers, Check } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
-import { calculateArea, sanitizeFilename, formatTimestamp } from '../utils/helpers';
+import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist } from '../utils/helpers';
 import { GSARITAMA_HEADER_LOGO } from '../constants/logoData';
 
 interface ConsolidatedReportProps {
@@ -21,6 +21,7 @@ export function ConsolidatedReport({
   const [viewFilter, setViewFilter] = useState<'all' | 'summary'>(initialViewMode);
   // Estado transitorio durante la exportación a PDF del resumen independiente
   const [isExportingSummary, setIsExportingSummary] = useState(false);
+  const checklist = useMemo(() => getProjectVerificationChecklist(fichas), [fichas]);
 
   const printScopeRef = useRef<'all' | 'summary'>(initialViewMode);
   const isTemporaryPrintRef = useRef(false);
@@ -288,8 +289,15 @@ export function ConsolidatedReport({
                   className="report-document-logo h-full w-full shrink-0 object-contain object-center block"
                 />
               </div>
-              <div className="text-xl font-bold text-[#17365d] uppercase tracking-wide">
-                FICHA DE RELEVAMIENTO ARQUITECTÓNICO
+              <div className="flex items-center gap-3">
+                <div className="text-xl font-bold text-[#17365d] uppercase tracking-wide">
+                  FICHA DE RELEVAMIENTO ARQUITECTÓNICO
+                </div>
+                {checklist.hasPending && (
+                  <span className="px-2 py-0.5 rounded text-[10pt] font-black tracking-wider uppercase border-2 border-amber-600 bg-amber-50 text-amber-900 print:border-black print:text-black">
+                    POR VERIFICAR
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-right text-sm leading-tight text-slate-700">

@@ -63,6 +63,7 @@ import {
   sanitizeFilename,
   formatTimestamp,
   nextConsecutive,
+  getProjectVerificationChecklist,
 } from './utils/helpers';
 
 /**
@@ -221,6 +222,7 @@ export default function App() {
   const [dupTargetId, setDupTargetId] = useState<string | null>(null);
   const [dupCodigo, setDupCodigo] = useState('');
   const [dupAmbiente, setDupAmbiente] = useState('');
+  const [isPorVerificarPrint, setIsPorVerificarPrint] = useState(false);
 
   // Web Notifications & Session tracking
   const [notificationPermission, setNotificationPermission] = useState<NotificationState>(() =>
@@ -571,6 +573,37 @@ export default function App() {
     if (!String(activeFicha.codigo || '').trim() || !String(activeFicha.ambiente || '').trim()) {
       return;
     }
+
+    // PRIORIDAD 4: Control de duplicados - advertencia si dos ambientes del mismo bloque tienen las mismas dimensiones
+    const currentBloque = (activeFicha.bloque || projectData.bloque || '').trim().toLowerCase();
+    const currentLargo = parseFloat(String(activeFicha.largo || '0').replace(',', '.'));
+    const currentAncho = parseFloat(String(activeFicha.ancho || '0').replace(',', '.'));
+    const currentArea = calculateArea(activeFicha);
+
+    const sameBlockSameDim = fichas.filter((f) => {
+      if (f.id === activeFicha.id) return false;
+      const b = (f.bloque || projectData.bloque || '').trim().toLowerCase();
+      if (b !== currentBloque) return false;
+      if (activeFicha.geometria === 'irregular') {
+        const fArea = calculateArea(f);
+        return Math.abs(fArea - currentArea) < 0.01 && currentArea > 0;
+      }
+      const fLargo = parseFloat(String(f.largo || '0').replace(',', '.'));
+      const fAncho = parseFloat(String(f.ancho || '0').replace(',', '.'));
+      return fLargo === currentLargo && fAncho === currentAncho && currentLargo > 0 && currentAncho > 0;
+    });
+
+    if (sameBlockSameDim.length > 0) {
+      const dimDesc = activeFicha.geometria === 'irregular'
+        ? `área ${currentArea.toFixed(2)} m²`
+        : `L: ${activeFicha.largo || '0.00'}m × A: ${activeFicha.ancho || '0.00'}m`;
+      const names = sameBlockSameDim.map((f) => `• ${f.codigo || 'S/C'} - ${f.ambiente || 'Ambiente'}`).join('\n');
+      const proceed = confirm(
+        `⚠️ Control de duplicados en el bloque:\n\nExisten otros ambientes en este bloque con las mismas dimensiones registradas (${dimDesc}):\n${names}\n\n¿Confirmar que es un ambiente con dimensiones idénticas (tipo o espejo) y guardar?`
+      );
+      if (!proceed) return;
+    }
+
     if (activeFicha.fotos.length === 0) {
       const proceed = confirm(
         '⚠️ Alerta de Registro Fotográfico:\n\nEste ambiente tiene 0 fotografías registradas (se sugiere un objetivo de al menos 4 fotos representativas).\n\n¿Deseas finalizar y guardar este ambiente sin fotografías, o prefieres cargarlas ahora?'
@@ -683,6 +716,36 @@ export default function App() {
       return;
     }
 
+    // PRIORIDAD 4: Al duplicar un ambiente, advertir si existen ambientes con las mismas dimensiones en el mismo bloque
+    const targetBloque = (target.bloque || projectData.bloque || '').trim().toLowerCase();
+    const targetLargo = parseFloat(String(target.largo || '0').replace(',', '.'));
+    const targetAncho = parseFloat(String(target.ancho || '0').replace(',', '.'));
+    const targetArea = calculateArea(target);
+
+    const sameBlockSameDim = fichas.filter((f) => {
+      if (f.id === target.id) return false;
+      const b = (f.bloque || projectData.bloque || '').trim().toLowerCase();
+      if (b !== targetBloque) return false;
+      if (target.geometria === 'irregular') {
+        const fArea = calculateArea(f);
+        return Math.abs(fArea - targetArea) < 0.01 && targetArea > 0;
+      }
+      const fLargo = parseFloat(String(f.largo || '0').replace(',', '.'));
+      const fAncho = parseFloat(String(f.ancho || '0').replace(',', '.'));
+      return fLargo === targetLargo && fAncho === targetAncho && targetLargo > 0 && targetAncho > 0;
+    });
+
+    if (sameBlockSameDim.length > 0) {
+      const dimDesc = target.geometria === 'irregular'
+        ? `área ${targetArea.toFixed(2)} m²`
+        : `L: ${target.largo || '0.00'}m × A: ${target.ancho || '0.00'}m`;
+      const names = sameBlockSameDim.map((f) => `• ${f.codigo || 'S/C'} - ${f.ambiente || 'Ambiente'}`).join('\n');
+      const proceed = confirm(
+        `⚠️ Control de duplicados en el bloque:\n\nYa existen otros ambientes en este bloque con dimensiones idénticas (${dimDesc}):\n${names}\n\n¿Confirmar que es un ambiente tipo o espejo y crear la nueva ficha?`
+      );
+      if (!proceed) return;
+    }
+
     const duplicated: Ficha = JSON.parse(JSON.stringify(target));
     duplicated.id = 'F' + Date.now();
     duplicated.cuan = [];
@@ -698,6 +761,25 @@ export default function App() {
     const updated = await StorageService.getFichas();
     setFichas(updated);
     setSaveStatus(`Ambiente duplicado y guardado ${new Date().toLocaleTimeString('es-EC')}`);
+  };
+
+  // PRIORIDAD 5: Lista de verificación antes de exportar CSV
+  const handleExportCSVWithChecklist = () => {
+    const listToVerify = fichas.length > 0 ? fichas : [activeFicha];
+    const checklist = getProjectVerificationChecklist(listToVerify);
+    if (checklist.hasPending) {
+      const summary = checklist.items
+        .filter((i) => i.status === 'warning')
+        .map((i) => `• ${i.title}: ${i.detail}`)
+        .join('\n');
+      const proceed = confirm(
+        `⚠️ Lista de verificación antes de exportar CSV (${checklist.pendingCount} observaciones):\n\n${summary}\n\n¿Deseas exportar de todos modos incluyendo la marca [POR VERIFICAR] en el documento?`
+      );
+      if (!proceed) return;
+      exportCSV(fichas, projectData, true);
+    } else {
+      exportCSV(fichas, projectData, false);
+    }
   };
 
   const handleExportProject = () => {
@@ -886,13 +968,22 @@ export default function App() {
                 <button type="button" onClick={() => { handleExportProject(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
                   <Download size={17} className="shrink-0" /> Exportar respaldo
                 </button>
-                <button type="button" onClick={() => { exportCSV(fichas, projectData); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
+                <button type="button" onClick={() => { handleExportCSVWithChecklist(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
                   <FileDown size={17} className="shrink-0" /> Exportar CSV
                 </button>
                 <button type="button" onClick={() => { setShowExportModal(true); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
                   <FileText size={17} className="shrink-0 text-red-400" /> Exportar PDF (elegir secciones)
                 </button>
-                <button type="button" onClick={() => { window.print(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const checklist = getProjectVerificationChecklist(fichas.length > 0 ? fichas : [activeFicha]);
+                    setIsPorVerificarPrint(checklist.hasPending);
+                    window.print();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600"
+                >
                   <Printer size={17} className="shrink-0" /> Imprimir directo
                 </button>
               </div>
@@ -1083,7 +1174,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => {
-                      exportCSV(fichas, projectData);
+                      handleExportCSVWithChecklist();
                       setExportDropdownOpen(false);
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
@@ -1116,13 +1207,13 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => {
-                      window.print();
+                      setShowExportModal(true);
                       setExportDropdownOpen(false);
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border-t border-slate-700/60 cursor-pointer"
                   >
                     <FileText size={15} className="text-red-400 shrink-0" />
-                    <span>Exportar PDF</span>
+                    <span>Exportar PDF (personalizado)</span>
                   </button>
                 </div>,
                 document.body
@@ -1131,9 +1222,11 @@ export default function App() {
               {/* 8. Imprimir / PDF */}
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => {
+                  setShowExportModal(true);
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors shrink-0 shadow-xs cursor-pointer"
-                title="Imprimir ficha o guardar como PDF"
+                title="Personalizar e imprimir ficha o guardar como PDF"
               >
                 <Printer size={14} className="shrink-0" />
                 <span>Imprimir / PDF</span>
@@ -1200,8 +1293,15 @@ export default function App() {
                   className="report-document-logo h-full w-full shrink-0 object-contain object-center block"
                 />
               </div>
-              <div className="font-bold text-[#17365d] text-lg uppercase tracking-wide">
-                FICHA DE RELEVAMIENTO ARQUITECTÓNICO
+              <div className="flex items-center gap-2.5">
+                <div className="font-bold text-[#17365d] text-lg uppercase tracking-wide">
+                  FICHA DE RELEVAMIENTO ARQUITECTÓNICO
+                </div>
+                {isPorVerificarPrint && (
+                  <span className="px-2 py-0.5 rounded text-[10pt] font-black tracking-wider uppercase border-2 border-amber-600 bg-amber-50 text-amber-900 print:border-black print:text-black">
+                    POR VERIFICAR
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-right text-[10pt] leading-tight text-slate-800">
@@ -1645,64 +1745,88 @@ export default function App() {
           </div>
         )}
 
-        {/* Duplicate Modal */}
-        {dupTargetId && (
-          <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 print:hidden">
-            <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden">
-              <div className="bg-[#17365d] text-white px-4 py-3 flex items-center">
-                <Copy size={18} className="mr-2" />
-                <h2 className="text-base font-bold">Duplicar ambiente como nueva plantilla</h2>
-              </div>
-              <div className="p-4 space-y-3">
-                <p className="text-xs text-slate-600">
-                  Se copiarán todos los datos de la ficha seleccionada, excepto la Sección 8 (Cuantificación preliminar) y
-                  la Sección 9 (Registro fotográfico). Indique la identificación del nuevo ambiente.
-                </p>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Código</label>
-                  <input
-                    autoFocus
-                    className="w-full p-2 border rounded"
-                    placeholder="Ej. A-02"
-                    value={dupCodigo}
-                    onChange={(e) => setDupCodigo(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleConfirmDuplicate();
-                    }}
-                  />
+        {/* Duplicate Modal - PRIORIDAD 4: Control de duplicados */}
+        {dupTargetId && (() => {
+          const target = fichas.find((f) => f.id === dupTargetId);
+          return (
+            <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 print:hidden">
+              <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden">
+                <div className="bg-[#17365d] text-white px-4 py-3 flex items-center">
+                  <Copy size={18} className="mr-2" />
+                  <h2 className="text-base font-bold">Duplicar ambiente como nueva plantilla</h2>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Ambiente / Área</label>
-                  <input
-                    className="w-full p-2 border rounded"
-                    placeholder="Ej. Aula 2"
-                    value={dupAmbiente}
-                    onChange={(e) => setDupAmbiente(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleConfirmDuplicate();
-                    }}
-                  />
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-slate-600">
+                    Se copiarán los datos dimensionales, constructivos, equipamiento e instalaciones del ambiente.
+                    Revise y confirme el nombre y las dimensiones antes de crear la copia.
+                  </p>
+
+                  {target && (
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between font-bold text-slate-700">
+                        <span>Origen: {target.codigo || 'S/C'} - {target.ambiente || 'Sin nombre'}</span>
+                        <span className="text-blue-700 font-semibold uppercase text-[10px] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                          {target.geometria || 'regular'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-600 bg-white p-2 rounded border border-slate-100">
+                        <div>Largo: <strong className="text-slate-800">{target.largo || '0.00'} m</strong></div>
+                        <div>Ancho: <strong className="text-slate-800">{target.ancho || '0.00'} m</strong></div>
+                        <div>Altura: <strong className="text-slate-800">{target.altura || '0.00'} m</strong></div>
+                      </div>
+                      <div className="text-[11px] text-slate-600 flex justify-between items-center pt-0.5">
+                        <span>Superficie calculada:</span>
+                        <strong className="text-emerald-700 font-bold">{calculateArea(target).toFixed(2)} m²</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Nuevo Código</label>
+                    <input
+                      autoFocus
+                      className="w-full p-2 border rounded text-xs sm:text-sm"
+                      placeholder="Ej. A-02"
+                      value={dupCodigo}
+                      onChange={(e) => setDupCodigo(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleConfirmDuplicate();
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Nuevo Ambiente / Área</label>
+                    <input
+                      className="w-full p-2 border rounded text-xs sm:text-sm"
+                      placeholder="Ej. Aula 2"
+                      value={dupAmbiente}
+                      onChange={(e) => setDupAmbiente(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleConfirmDuplicate();
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setDupTargetId(null)}
-                  className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded text-sm font-semibold hover:bg-slate-300"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDuplicate}
-                  className="px-3 py-1.5 bg-[#16794b] text-white rounded text-sm font-semibold hover:bg-green-600"
-                >
-                  Crear ambiente
-                </button>
+                <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setDupTargetId(null)}
+                    className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded text-sm font-semibold hover:bg-slate-300 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDuplicate}
+                    className="px-3 py-1.5 bg-[#16794b] text-white rounded text-sm font-semibold hover:bg-green-600 cursor-pointer"
+                  >
+                    Confirmar y crear
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Manual Modal */}
         {showManual && <ManualModal onClose={() => setShowManual(false)} />}
@@ -1790,10 +1914,12 @@ export default function App() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           ficha={activeFicha}
+          fichas={fichas}
           projectData={projectData}
           config={printSections}
           onChangeConfig={setPrintSections}
-          onConfirmPrint={() => {
+          onConfirmPrint={(porVerificar) => {
+            setIsPorVerificarPrint(Boolean(porVerificar));
             setShowExportModal(false);
             setTimeout(() => {
               window.print();

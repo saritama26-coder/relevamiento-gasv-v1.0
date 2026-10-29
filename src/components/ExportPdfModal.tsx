@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   FileText,
   Printer,
@@ -9,17 +9,22 @@ import {
   RotateCcw,
   Sparkles,
   Info,
+  CheckCircle2,
+  AlertTriangle,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Ficha, ProjectData, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from '../types';
+import { getProjectVerificationChecklist } from '../utils/helpers';
 
 interface ExportPdfModalProps {
   isOpen: boolean;
   onClose: () => void;
   ficha: Ficha;
+  fichas?: Ficha[];
   projectData: ProjectData;
   config: PrintSectionsConfig;
   onChangeConfig: (config: PrintSectionsConfig) => void;
-  onConfirmPrint: () => void;
+  onConfirmPrint: (porVerificar?: boolean) => void;
 }
 
 interface SectionMeta {
@@ -35,12 +40,18 @@ export function ExportPdfModal({
   isOpen,
   onClose,
   ficha,
+  fichas = [],
   projectData,
   config,
   onChangeConfig,
   onConfirmPrint,
 }: ExportPdfModalProps) {
   const [rememberPreference, setRememberPreference] = useState(true);
+
+  const checklist = useMemo(() => {
+    const listToVerify = fichas && fichas.length > 0 ? fichas : [ficha];
+    return getProjectVerificationChecklist(listToVerify);
+  }, [fichas, ficha]);
 
   if (!isOpen) return null;
 
@@ -216,7 +227,7 @@ export function ExportPdfModal({
         // ignore localStorage errors
       }
     }
-    onConfirmPrint();
+    onConfirmPrint(checklist.hasPending);
   };
 
   return (
@@ -268,6 +279,57 @@ export function ExportPdfModal({
               Proyecto: <strong className="text-slate-700">{projectData.proyecto || 'General'}</strong>
             </span>
           </div>
+        </div>
+
+        {/* PRIORIDAD 5: Lista de verificación antes de exportar */}
+        <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/70">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <ClipboardCheck size={14} className="text-[#17365d]" />
+              Lista de verificación previa a la exportación
+            </span>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                checklist.hasPending
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              }`}
+            >
+              {checklist.hasPending ? `${checklist.pendingCount} por verificar` : '100% Verificado'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {checklist.items.map((item) => (
+              <div
+                key={item.id}
+                className={`p-2 rounded border flex items-start gap-2 ${
+                  item.status === 'ok'
+                    ? 'bg-white border-slate-200 text-slate-700'
+                    : 'bg-amber-50/80 border-amber-200 text-amber-950'
+                }`}
+              >
+                {item.status === 'ok' ? (
+                  <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-[11px] leading-tight text-slate-800">{item.title}</div>
+                  <div className="text-[10px] text-slate-500 leading-tight mt-0.5">{item.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {checklist.hasPending && (
+            <div className="mt-2 px-2.5 py-1.5 rounded bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs text-amber-900">
+              <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+              <span className="text-[11px]">
+                Existen puntos pendientes: el documento se exportará con la marca visible <strong>[POR VERIFICAR]</strong>.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Presets Bar */}
