@@ -43,6 +43,8 @@ interface GoogleDriveBackupModalProps {
   autoBackupError: string | null;
   onManualBackupTrigger: () => Promise<void>;
   onAutomaticBackupTrigger: () => Promise<void>;
+  autoBackupEnabled?: boolean;
+  onToggleAutoBackup?: (enabled: boolean) => void;
 }
 
 export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
@@ -57,6 +59,8 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
   autoBackupError,
   onManualBackupTrigger,
   onAutomaticBackupTrigger,
+  autoBackupEnabled: propAutoBackupEnabled,
+  onToggleAutoBackup: propOnToggleAutoBackup,
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -68,6 +72,7 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(() => {
+    if (propAutoBackupEnabled !== undefined) return propAutoBackupEnabled;
     try {
       return typeof window !== 'undefined' && window.localStorage
         ? localStorage.getItem('gdrive_auto_backup_enabled') !== 'false'
@@ -76,6 +81,12 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
       return true;
     }
   });
+
+  useEffect(() => {
+    if (propAutoBackupEnabled !== undefined) {
+      setAutoBackupEnabled(propAutoBackupEnabled);
+    }
+  }, [propAutoBackupEnabled]);
 
   // Reflect the lifetime of the in-memory OAuth token in the UI.
   useEffect(() => {
@@ -97,6 +108,7 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
 
   const handleToggleAutoBackup = async (enabled: boolean) => {
     setAutoBackupEnabled(enabled);
+    propOnToggleAutoBackup?.(enabled);
     try {
       localStorage.setItem('gdrive_auto_backup_enabled', enabled ? 'true' : 'false');
     } catch {
@@ -105,7 +117,7 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
     setErrorMessage(null);
     setSuccessMessage(null);
     if (!enabled) {
-      setSuccessMessage('El respaldo automático quedó pausado. Tus fichas locales no se modificarán.');
+      setSuccessMessage('Auto-respaldo en Google Drive pausado temporalmente. Tu cuenta sigue autorizada.');
       return;
     }
     const currentToken = await getAccessToken();
@@ -116,7 +128,7 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
     try {
       await onAutomaticBackupTrigger();
       await loadBackups(currentToken);
-      setSuccessMessage('Respaldo automático activado y primera copia solicitada.');
+      setSuccessMessage('Respaldo automático activado y copia sincronizada.');
     } catch (e: any) {
       setErrorMessage(e?.message || 'No se pudo iniciar el respaldo automático.');
     }
@@ -363,18 +375,23 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <FolderSync className="w-5 h-5 text-sky-700" />
-                <span className="font-semibold text-slate-800">
-                  Respaldo Continuo Inteligente
-                </span>
+                <div>
+                  <span className="font-semibold text-slate-800 block">
+                    Respaldo Continuo Inteligente
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-normal">
+                    Permite desactivarlo temporalmente sin desautorizar la aplicación
+                  </span>
+                </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
+              <label className="relative inline-flex items-center cursor-pointer" title={autoBackupEnabled ? 'Pausar auto-respaldo en Google Drive' : 'Reactivar auto-respaldo en Google Drive'}>
                 <input
                   type="checkbox"
                   checked={autoBackupEnabled}
                   onChange={(e) => handleToggleAutoBackup(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-9 h-5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+                <div className="w-10 h-5.5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-sky-600 shadow-inner"></div>
               </label>
             </div>
 
@@ -384,11 +401,13 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
               <div className="bg-white p-2.5 rounded-lg border border-sky-100 flex items-center space-x-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <ShieldCheck className={`w-4 h-4 shrink-0 ${autoBackupEnabled ? 'text-emerald-600' : 'text-amber-500'}`} />
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Estado de sincronización</span>
+                  <span className="text-slate-500 block text-[10px]">Estado del auto-respaldo</span>
                   <span className="font-medium text-slate-800">
-                    {autoBackupStatus === 'syncing'
+                    {!autoBackupEnabled
+                      ? 'Pausado temporalmente (sesión autorizada)'
+                      : autoBackupStatus === 'syncing'
                       ? 'Sincronizando con Drive...'
                       : autoBackupStatus === 'synced'
                       ? 'Al día y protegido en Drive'

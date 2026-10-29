@@ -1,5 +1,16 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { WandSparkles, Trash, Camera, Image as ImageIcon, Copy, RefreshCw } from 'lucide-react';
+import {
+  WandSparkles,
+  Trash,
+  Camera,
+  Image as ImageIcon,
+  Copy,
+  RefreshCw,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle2,
+  Check,
+} from 'lucide-react';
 import { Ficha, ProjectData, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from '../types';
 import { DataTable } from './DataTable';
 import { useCatalogos } from '../context/CatalogContext';
@@ -20,11 +31,14 @@ import {
   lookupReference,
 } from '../utils/helpers';
 
+export const SUGGESTED_PHOTOS_TARGET = 4;
+
 interface FichaFormProps {
   ficha: Ficha;
   projectData: ProjectData;
   onChange: (patch: Partial<Ficha>) => void;
   printSections?: PrintSectionsConfig;
+  onFinalizarAmbiente?: () => void;
 }
 
 export function FichaForm({
@@ -32,6 +46,7 @@ export function FichaForm({
   projectData,
   onChange,
   printSections = DEFAULT_PRINT_SECTIONS,
+  onFinalizarAmbiente,
 }: FichaFormProps) {
   const { listas } = useCatalogos();
   const codigoMissing = !String(ficha.codigo || '').trim();
@@ -302,6 +317,32 @@ export function FichaForm({
     }
     const n = parseFloat(String(v || '').replace(',', '.'));
     return isNaN(n) ? v : n.toFixed(2);
+  };
+
+  const fotoCount = Array.isArray(ficha.fotos) ? ficha.fotos.length : 0;
+  const photoPercentage = Math.min(100, Math.round((fotoCount / SUGGESTED_PHOTOS_TARGET) * 100));
+  const hasZeroPhotos = fotoCount === 0;
+  const hasMetPhotoTarget = fotoCount >= SUGGESTED_PHOTOS_TARGET;
+
+  const handleFinalizarClick = () => {
+    if (codigoMissing || ambienteMissing) {
+      alert('Por favor complete el Código y el Nombre de Ambiente antes de finalizar.');
+      return;
+    }
+    if (hasZeroPhotos) {
+      const proceed = confirm(
+        '⚠️ Alerta de Registro Fotográfico:\n\nEste ambiente tiene 0 fotografías registradas (se sugiere un objetivo de al menos 4 fotos representativas).\n\n¿Deseas finalizar y guardar este ambiente sin fotografías, o prefieres cargarlas ahora?'
+      );
+      if (!proceed) {
+        document.getElementById('seccion-registro-fotografico')?.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
+    if (onFinalizarAmbiente) {
+      onFinalizarAmbiente();
+    } else {
+      alert('Ambiente validado y guardado correctamente.');
+    }
   };
 
   return (
@@ -716,16 +757,44 @@ export function FichaForm({
       </div>
 
       {/* 9. Registro fotográfico */}
-      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.fotografico ? 'print:hidden' : ''}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 border-b pb-2 gap-2">
-          <h2 className="text-xl font-semibold text-blue-900 print:text-lg">
-            9. Registro fotográfico
-          </h2>
+      <div
+        id="seccion-registro-fotografico"
+        className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 transition-all ${
+          hasZeroPhotos ? 'ring-1 ring-rose-200' : ''
+        } ${!printSections.fotografico ? 'print:hidden' : ''}`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 border-b pb-2 gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-xl font-semibold text-blue-900 print:text-lg">
+              9. Registro fotográfico
+            </h2>
+
+            {/* Validación visual: comparación con objetivo sugerido */}
+            <div className="print:hidden">
+              {hasZeroPhotos ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">
+                  <AlertTriangle size={13} className="text-rose-600 shrink-0" />
+                  <span>0 de {SUGGESTED_PHOTOS_TARGET} fotos · Alerta: Sin fotos</span>
+                </span>
+              ) : fotoCount < SUGGESTED_PHOTOS_TARGET ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                  <Camera size={13} className="text-amber-700 shrink-0" />
+                  <span>{fotoCount} de {SUGGESTED_PHOTOS_TARGET} fotos sugeridas ({photoPercentage}%)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                  <span>{fotoCount} fotos · Objetivo sugerido cumplido</span>
+                </span>
+              )}
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2 print:hidden">
             <button
               type="button"
               onClick={() => cameraInputRef.current?.click()}
-              className="flex items-center px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-xs transition-colors"
+              className="flex items-center px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer"
             >
               <Camera size={16} className="mr-1.5" />
               <span>Tomar Foto (Cámara)</span>
@@ -733,12 +802,64 @@ export function FichaForm({
             <button
               type="button"
               onClick={() => galleryInputRef.current?.click()}
-              className="flex items-center px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs sm:text-sm font-semibold border border-slate-300 transition-colors"
+              className="flex items-center px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs sm:text-sm font-semibold border border-slate-300 transition-colors cursor-pointer"
             >
               <ImageIcon size={16} className="mr-1.5 text-slate-600" />
               <span>Subir de Galería / PC</span>
             </button>
           </div>
+        </div>
+
+        {/* Barra de progreso visual y panel de validación */}
+        <div className="mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3.5 print:hidden space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+              <span>Cobertura fotográfica del ambiente:</span>
+              <strong className={hasZeroPhotos ? 'text-rose-700' : fotoCount < SUGGESTED_PHOTOS_TARGET ? 'text-amber-700' : 'text-emerald-700'}>
+                {fotoCount} de {SUGGESTED_PHOTOS_TARGET} fotos sugeridas
+              </strong>
+            </span>
+            <span className="font-mono text-[11px] font-bold text-slate-600">
+              {photoPercentage}%
+            </span>
+          </div>
+
+          {/* Barra de progreso */}
+          <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 ${
+                hasZeroPhotos ? 'bg-rose-500 w-0' : fotoCount < SUGGESTED_PHOTOS_TARGET ? 'bg-amber-500' : 'bg-emerald-600'
+              }`}
+              style={{ width: `${photoPercentage}%` }}
+            />
+          </div>
+
+          {/* Mensajes de validación y alerta */}
+          {hasZeroPhotos && (
+            <div className="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 text-xs flex items-start gap-2.5">
+              <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Alerta: Este ambiente no tiene fotografías registradas.</p>
+                <p className="text-[11px] text-rose-700 mt-0.5">
+                  Para un relevamiento técnico completo y auditable, se sugiere cargar al menos {SUGGESTED_PHOTOS_TARGET} fotos (ingreso, esquinas o vistas generales y detalles constructivos) antes de finalizar.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!hasZeroPhotos && fotoCount < SUGGESTED_PHOTOS_TARGET && (
+            <p className="text-[11px] text-amber-800 flex items-center gap-1.5 mt-1 font-medium">
+              <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+              <span>Faltan {SUGGESTED_PHOTOS_TARGET - fotoCount} fotografías para alcanzar el objetivo sugerido de {SUGGESTED_PHOTOS_TARGET} tomas representativas.</span>
+            </p>
+          )}
+
+          {hasMetPhotoTarget && (
+            <p className="text-[11px] text-emerald-800 flex items-center gap-1.5 mt-1 font-medium">
+              <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+              <span>Excelente: Objetivo sugerido cumplido con {fotoCount} fotografías registradas.</span>
+            </p>
+          )}
         </div>
 
         {/* Hidden File Inputs */}
@@ -869,6 +990,33 @@ export function FichaForm({
                 onChange={(e) => onChange({ fir4: e.target.value })}
               />
             </div>
+
+            {/* Control de calidad de fotos antes de verificar */}
+            <div className="pt-2 print:hidden border-t border-slate-200">
+              <span className="text-xs font-bold text-slate-600 block mb-1">
+                Control de Fotografías:
+              </span>
+              {hasZeroPhotos ? (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 text-xs flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                    <span className="font-semibold truncate">0 fotos registradas (Alerta: se sugieren {SUGGESTED_PHOTOS_TARGET})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('seccion-registro-fotografico')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="px-2.5 py-1 bg-rose-600 text-white rounded text-[10px] font-bold hover:bg-rose-700 shrink-0 cursor-pointer"
+                  >
+                    Subir fotos
+                  </button>
+                </div>
+              ) : (
+                <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-xs flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                  <span className="font-medium">{fotoCount} de {SUGGESTED_PHOTOS_TARGET} fotos registradas ({hasMetPhotoTarget ? 'Objetivo cumplido' : 'Cobertura parcial'})</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -878,7 +1026,7 @@ export function FichaForm({
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           12. Resumen de la ficha
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print:grid-cols-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 print:grid-cols-5">
           {[
             ['Constructivos', ficha.cons.length],
             ['Equipamiento', ficha.equip.length],
@@ -890,7 +1038,50 @@ export function FichaForm({
               <b className="block text-2xl font-bold text-[#17365d] print:text-base">{count}</b>
             </div>
           ))}
+          <div className={`p-3 border rounded print:p-2 ${hasZeroPhotos ? 'border-rose-300 bg-rose-50/60' : 'border-gray-200 bg-slate-50'}`}>
+            <span className="block text-xs font-bold text-gray-500 uppercase">Fotografías</span>
+            <b className={`block text-2xl font-bold print:text-base ${hasZeroPhotos ? 'text-rose-600' : 'text-[#17365d]'}`}>
+              {fotoCount} <span className="text-xs font-normal text-slate-500">/ {SUGGESTED_PHOTOS_TARGET}</span>
+            </b>
+            <span className={`text-[10px] font-bold block mt-0.5 ${hasZeroPhotos ? 'text-rose-600' : fotoCount < SUGGESTED_PHOTOS_TARGET ? 'text-amber-600' : 'text-emerald-600'}`}>
+              {hasZeroPhotos ? '⚠️ Alerta: 0 fotos' : fotoCount < SUGGESTED_PHOTOS_TARGET ? '🟡 Cobertura parcial' : '🟢 Meta cumplida'}
+            </span>
+          </div>
         </div>
+      </div>
+
+      {/* Barra de acción: Finalizar Relevamiento del Ambiente */}
+      <div className="bg-gradient-to-r from-[#17365d] to-[#286b9e] text-white p-4 sm:p-5 rounded-xl shadow-md print:hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base font-bold">Finalizar Relevamiento de este Ambiente</h3>
+            {hasZeroPhotos ? (
+              <span className="text-[10px] bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full animate-pulse">
+                Alerta: 0 fotos registradas
+              </span>
+            ) : hasMetPhotoTarget ? (
+              <span className="text-[10px] bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full">
+                Objetivo fotográfico cumplido ({fotoCount})
+              </span>
+            ) : (
+              <span className="text-[10px] bg-amber-400 text-slate-900 font-bold px-2 py-0.5 rounded-full">
+                Fotos parciales ({fotoCount}/{SUGGESTED_PHOTOS_TARGET})
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-sky-100 mt-1">
+            Ambiente actual: <strong>{ficha.codigo || 'S/C'} - {ficha.ambiente || 'Sin nombre'}</strong> · Verifica la información antes de concluir.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleFinalizarClick}
+          className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+        >
+          <Check size={16} />
+          <span>Finalizar y Guardar Ambiente</span>
+        </button>
       </div>
 
       {/* Datalists */}

@@ -148,6 +148,15 @@ export default function App() {
     }
   });
   const [gdriveAutoError, setGdriveAutoError] = useState<string | null>(null);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage
+        ? localStorage.getItem('gdrive_auto_backup_enabled') !== 'false'
+        : true;
+    } catch {
+      return true;
+    }
+  });
 
   // Auto-save & Status
   const [saveStatus, setSaveStatus] = useState('');
@@ -296,6 +305,27 @@ export default function App() {
     setGdriveAutoStatus('synced');
   }, [projectData, catalogos, fichas]);
 
+  const handleToggleAutoBackup = useCallback(
+    async (enabled: boolean) => {
+      setAutoBackupEnabled(enabled);
+      try {
+        localStorage.setItem('gdrive_auto_backup_enabled', enabled ? 'true' : 'false');
+      } catch {
+        // ignore
+      }
+      if (enabled) {
+        const token = await getAccessToken();
+        if (token) {
+          triggerGoogleDriveAutoBackup(fichas, projectData, catalogos);
+        }
+      } else {
+        setGdriveAutoStatus('idle');
+        setGdriveAutoError(null);
+      }
+    },
+    [fichas, projectData, catalogos, triggerGoogleDriveAutoBackup]
+  );
+
   // Autosave ficha with debounce
   useEffect(() => {
     if (isFirstMount.current) {
@@ -437,6 +467,15 @@ export default function App() {
     if (!String(activeFicha.codigo || '').trim() || !String(activeFicha.ambiente || '').trim()) {
       return;
     }
+    if (activeFicha.fotos.length === 0) {
+      const proceed = confirm(
+        '⚠️ Alerta de Registro Fotográfico:\n\nEste ambiente tiene 0 fotografías registradas (se sugiere un objetivo de al menos 4 fotos representativas).\n\n¿Deseas finalizar y guardar este ambiente sin fotografías, o prefieres cargarlas ahora?'
+      );
+      if (!proceed) {
+        document.getElementById('seccion-registro-fotografico')?.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
     await StorageService.saveFicha(activeFicha);
     const updated = await StorageService.getFichas();
     setFichas(updated);
@@ -447,6 +486,15 @@ export default function App() {
   };
 
   const handleNuevoAmbiente = () => {
+    if (activeFicha.codigo && activeFicha.ambiente && activeFicha.fotos.length === 0) {
+      const okFotos = confirm(
+        '⚠️ Alerta de Registro Fotográfico:\n\nEl ambiente actual no cuenta con fotografías registradas (objetivo sugerido: al menos 4 fotos).\n\n¿Deseas darlo por finalizado y crear un nuevo ambiente sin fotografías?'
+      );
+      if (!okFotos) {
+        document.getElementById('seccion-registro-fotografico')?.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
     if (hasUnsavedChanges) {
       const ok = confirm('La ficha actual tiene cambios sin guardar. ¿Crear un ambiente nuevo de todos modos?');
       if (!ok) return;
@@ -722,9 +770,9 @@ export default function App() {
                 <button type="button" onClick={() => { setShowSync(true); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-sky-600/90 hover:bg-sky-500">
                   <ArrowRightLeft size={17} className="shrink-0" /> Sincronizar con celular o computadora
                 </button>
-                <button type="button" onClick={() => { setShowGDriveModal(true); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold ${gdriveAutoStatus === "synced" ? "bg-emerald-700 hover:bg-emerald-600" : gdriveAutoStatus === "syncing" ? "bg-amber-700 hover:bg-amber-600" : gdriveAutoStatus === "error" ? "bg-rose-700 hover:bg-rose-600" : "bg-[#1e5282] hover:bg-sky-600"}`}>
-                  {gdriveAutoStatus === "synced" ? <CloudCheck size={17} className="shrink-0" /> : gdriveAutoStatus === "syncing" ? <CloudUpload size={17} className="shrink-0 animate-pulse" /> : <Cloud size={17} className="shrink-0" />}
-                  {gdriveAutoStatus === "synced" ? "Google Drive · Respaldo guardado" : gdriveAutoStatus === "syncing" ? "Google Drive · Sincronizando…" : gdriveAutoStatus === "error" ? "Google Drive · Revisar error" : "Google Drive · Copia de seguridad"}
+                <button type="button" onClick={() => { setShowGDriveModal(true); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold ${!autoBackupEnabled ? "bg-amber-800 hover:bg-amber-700" : gdriveAutoStatus === "synced" ? "bg-emerald-700 hover:bg-emerald-600" : gdriveAutoStatus === "syncing" ? "bg-amber-700 hover:bg-amber-600" : gdriveAutoStatus === "error" ? "bg-rose-700 hover:bg-rose-600" : "bg-[#1e5282] hover:bg-sky-600"}`}>
+                  {!autoBackupEnabled ? <Cloud size={17} className="shrink-0 text-amber-200" /> : gdriveAutoStatus === "synced" ? <CloudCheck size={17} className="shrink-0" /> : gdriveAutoStatus === "syncing" ? <CloudUpload size={17} className="shrink-0 animate-pulse" /> : <Cloud size={17} className="shrink-0" />}
+                  {!autoBackupEnabled ? "Google Drive · Auto-respaldo pausado" : gdriveAutoStatus === "synced" ? "Google Drive · Respaldo guardado" : gdriveAutoStatus === "syncing" ? "Google Drive · Sincronizando…" : gdriveAutoStatus === "error" ? "Google Drive · Revisar error" : "Google Drive · Copia de seguridad"}
                 </button>
 
                 <p className="px-2 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-sky-300">Importación y exportación</p>
@@ -797,7 +845,9 @@ export default function App() {
                 onClick={() => setShowGDriveModal(true)}
                 className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full hover:bg-white/10 transition-colors border border-transparent hover:border-white/20"
                 title={
-                  gdriveAutoStatus === 'synced'
+                  !autoBackupEnabled
+                    ? 'Google Drive: auto-respaldo pausado temporalmente (sesión autorizada)'
+                    : gdriveAutoStatus === 'synced'
                     ? `Google Drive: respaldo confirmado${lastGdriveBackupTime ? ` — ${new Date(lastGdriveBackupTime).toLocaleString('es-EC')}` : ''}`
                     : gdriveAutoStatus === 'syncing'
                     ? 'Google Drive: sincronizando…'
@@ -808,13 +858,16 @@ export default function App() {
               >
                 <div className="w-7 h-7 rounded-full bg-slate-600 border border-white/50 flex items-center justify-center text-white relative shadow-xs">
                   <User size={14} />
-                  {gdriveAutoStatus === 'synced' && (
+                  {!autoBackupEnabled && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-[#17365d]" title="Pausado temporalmente" />
+                  )}
+                  {autoBackupEnabled && gdriveAutoStatus === 'synced' && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#17365d]" />
                   )}
-                  {gdriveAutoStatus === 'syncing' && (
+                  {autoBackupEnabled && gdriveAutoStatus === 'syncing' && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse ring-2 ring-[#17365d]" />
                   )}
-                  {gdriveAutoStatus === 'error' && (
+                  {autoBackupEnabled && gdriveAutoStatus === 'error' && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-400 ring-2 ring-[#17365d]" />
                   )}
                 </div>
@@ -1219,6 +1272,7 @@ export default function App() {
             projectData={projectData}
             onChange={(patch) => setActiveFicha((prev) => ({ ...prev, ...patch }))}
             printSections={printSections}
+            onFinalizarAmbiente={handleManualSave}
           />
         </div>
 
@@ -1543,6 +1597,12 @@ export default function App() {
               }
             }}
             onClose={() => setShowSync(false)}
+            autoBackupEnabled={autoBackupEnabled}
+            onToggleAutoBackup={handleToggleAutoBackup}
+            onOpenGoogleDriveModal={() => {
+              setShowSync(false);
+              setShowGDriveModal(true);
+            }}
           />
         )}
 
@@ -1573,6 +1633,8 @@ export default function App() {
             autoBackupError={gdriveAutoError}
             onManualBackupTrigger={handleManualGDriveBackup}
             onAutomaticBackupTrigger={() => triggerGoogleDriveAutoBackup(fichas, projectData, catalogos)}
+            autoBackupEnabled={autoBackupEnabled}
+            onToggleAutoBackup={handleToggleAutoBackup}
           />
         )}
 

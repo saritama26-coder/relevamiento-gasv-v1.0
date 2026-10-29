@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { QrCode, Smartphone, Laptop, ArrowRightLeft, X, Copy, Check, Share2 } from 'lucide-react';
+import { QrCode, Smartphone, Laptop, ArrowRightLeft, X, Copy, Check, Share2, Cloud, CloudCheck, ShieldCheck, AlertCircle, ExternalLink } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
 import { exportProjectBackup, parseProjectBackup } from '../utils/helpers';
 
@@ -9,6 +9,9 @@ interface DeviceSyncModalProps {
   catalogos: Record<string, string[]>;
   onImportFichas: (fichas: Ficha[], project?: ProjectData, catalogos?: Record<string, string[]>) => void;
   onClose: () => void;
+  autoBackupEnabled?: boolean;
+  onToggleAutoBackup?: (enabled: boolean) => void;
+  onOpenGoogleDriveModal?: () => void;
 }
 
 export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
@@ -17,8 +20,11 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
   catalogos,
   onImportFichas,
   onClose,
+  autoBackupEnabled = true,
+  onToggleAutoBackup,
+  onOpenGoogleDriveModal,
 }) => {
-  const [activeTab, setActiveTab] = useState<'link' | 'qr' | 'code'>('link');
+  const [activeTab, setActiveTab] = useState<'link' | 'code' | 'drive'>('link');
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [inputCode, setInputCode] = useState('');
@@ -145,24 +151,37 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('link')}
-            className={`flex-1 py-3 text-center border-b-2 transition-colors ${
+            className={`flex-1 py-3 text-center border-b-2 transition-colors cursor-pointer ${
               activeTab === 'link'
                 ? 'border-blue-600 text-blue-800 bg-blue-50/50'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            1. Abrir en Móvil (QR / Link)
+            1. En Móvil (QR / Link)
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('code')}
-            className={`flex-1 py-3 text-center border-b-2 transition-colors ${
+            className={`flex-1 py-3 text-center border-b-2 transition-colors cursor-pointer ${
               activeTab === 'code'
                 ? 'border-blue-600 text-blue-800 bg-blue-50/50'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            2. Traspasar Datos entre Equipos
+            2. Traspasar Datos
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('drive')}
+            className={`flex-1 py-3 text-center border-b-2 transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'drive'
+                ? 'border-blue-600 text-blue-800 bg-blue-50/50'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Cloud size={14} className={activeTab === 'drive' ? 'text-blue-600' : 'text-slate-400'} />
+            <span>3. Auto-Respaldo Drive</span>
+            <span className={`w-2 h-2 rounded-full ${autoBackupEnabled ? 'bg-emerald-500' : 'bg-amber-400'}`} />
           </button>
         </div>
 
@@ -278,6 +297,102 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                   <p className="mt-2 text-xs font-bold text-emerald-700 text-center animate-pulse">
                     {importStatus}
                   </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'drive' && (
+            <div className="space-y-4">
+              {/* Card principal con interruptor */}
+              <div className="bg-sky-50/70 border border-sky-200 rounded-xl p-4 sm:p-5 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Cloud className="w-5 h-5 text-sky-700 shrink-0" />
+                      <h3 className="text-sm font-bold text-slate-800">
+                        Auto-Respaldo en Google Drive
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      Guarda automáticamente una copia de seguridad en la nube (carpeta <em>Relevamiento_Arquitectonico_Backups</em>) cada vez que se guarda o actualiza un ambiente.
+                    </p>
+                  </div>
+
+                  {/* Interruptor toggle switch */}
+                  <div className="shrink-0 pt-0.5">
+                    <label className="relative inline-flex items-center cursor-pointer" title={autoBackupEnabled ? 'Hacer clic para pausar auto-respaldo' : 'Hacer clic para reactivar auto-respaldo'}>
+                      <input
+                        type="checkbox"
+                        checked={autoBackupEnabled}
+                        onChange={(e) => onToggleAutoBackup?.(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600 shadow-inner"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Estado del interruptor */}
+                <div className="p-3 bg-white rounded-lg border border-sky-100 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {autoBackupEnabled ? (
+                      <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold text-xs shrink-0">
+                        <Check size={12} className="text-emerald-600" />
+                        Activo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-bold text-xs shrink-0">
+                        <AlertCircle size={12} className="text-amber-600" />
+                        Pausado temporalmente
+                      </span>
+                    )}
+                    <span className="text-slate-600 truncate">
+                      {autoBackupEnabled
+                        ? 'Copia continua en segundo plano habilitada'
+                        : 'Sesión de Google conservada sin desautorizar'}
+                    </span>
+                  </div>
+
+                  <span className="text-[11px] font-semibold text-sky-800 shrink-0">
+                    {autoBackupEnabled ? 'Sincronizando' : 'Sin envíos a Drive'}
+                  </span>
+                </div>
+
+                {/* Explicación de no desautorización */}
+                <div className="bg-white/80 rounded-lg p-3 border border-sky-200/60 text-xs space-y-2 text-slate-600">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <ShieldCheck size={15} className="text-blue-700" />
+                    <span>Control temporal de sincronización</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-600">
+                    <li>
+                      <strong>Sin desautorizar la app:</strong> Desactivar este interruptor detiene los envíos automáticos sin desconectar tu cuenta ni revocar permisos de Google.
+                    </li>
+                    <li>
+                      <strong>Reanudación instantánea:</strong> Puedes volver a activarlo en cualquier momento con un solo toque sin tener que volver a iniciar sesión.
+                    </li>
+                    <li>
+                      <strong>Seguridad local:</strong> Tus fichas se siguen guardando en la memoria del navegador de este dispositivo con total normalidad.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Acceso a la gestión completa de Google Drive */}
+                {onOpenGoogleDriveModal && (
+                  <div className="pt-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenGoogleDriveModal();
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 hover:text-sky-900 bg-white hover:bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-200 transition-colors cursor-pointer"
+                    >
+                      <span>Abrir panel completo de Drive (Puntos de restauración y descargas)</span>
+                      <ExternalLink size={12} />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
