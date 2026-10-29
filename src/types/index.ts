@@ -71,6 +71,7 @@ export interface CuantificacionRow {
   cantidadDerivada?: string;
   cantidadManual?: boolean;
   motivoCantidadManual?: string;
+  porVerificar?: boolean;
 }
 
 export interface FotoRegistro {
