@@ -1876,26 +1876,6 @@ export default function App() {
             projectData={projectData}
             catalogos={catalogos}
             onImportFichas={async (importedFichas, impProj, impCats) => {
- text-white rounded text-sm font-semibold hover:bg-green-600 cursor-pointer"
-                  >
-                    Confirmar y crear
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Manual Modal */}
-        {showManual && <ManualModal onClose={() => setShowManual(false)} />}
-
-        {/* Device Sync & Association Modal (Mobile & PC) */}
-        {showSync && (
-          <DeviceSyncModal
-            fichas={fichas}
-            projectData={projectData}
-            catalogos={catalogos}
-            onImportFichas={async (importedFichas, impProj, impCats) => {
               const map = new Map<string, Ficha>();
               fichas.forEach((f) => map.set(f.id, f));
               importedFichas.forEach((f) => {
