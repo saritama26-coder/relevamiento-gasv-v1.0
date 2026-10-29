@@ -66,6 +66,7 @@ export interface CuantificacionRow {
   estado: string;
   prioridad: string;
   origenPatologiaId?: string;
+  origenConstructivoId?: string;
   cantidadCalculada?: boolean;
   cantidadDerivada?: string;
   cantidadManual?: boolean;
