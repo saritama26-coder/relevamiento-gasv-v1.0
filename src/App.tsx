@@ -64,6 +64,8 @@ import {
   formatTimestamp,
   nextConsecutive,
   getProjectVerificationChecklist,
+  getFichaBlockingErrors,
+  getWorstSeverityState,
 } from './utils/helpers';
 
 /**
@@ -222,6 +224,7 @@ export default function App() {
   const [dupTargetId, setDupTargetId] = useState<string | null>(null);
   const [dupCodigo, setDupCodigo] = useState('');
   const [dupAmbiente, setDupAmbiente] = useState('');
+  const [dupConfirmDetails, setDupConfirmDetails] = useState(false);
   const [isPorVerificarPrint, setIsPorVerificarPrint] = useState(false);
 
   // Web Notifications & Session tracking
@@ -574,6 +577,20 @@ export default function App() {
       return;
     }
 
+    const previousFicha = fichas.find((f) => f.id === activeFicha.id);
+    const derivedState = getWorstSeverityState(activeFicha.pat || []).estado;
+    const fichaToSave: Ficha = {
+      ...activeFicha,
+      estadoDimensional: derivedState,
+      diagestado: derivedState,
+      updatedAt: new Date().toISOString(),
+    };
+    const blockingErrors = getFichaBlockingErrors(fichaToSave, previousFicha);
+    if (blockingErrors.length > 0) {
+      alert(`No se puede guardar hasta corregir estos errores:\n\n${blockingErrors.map((error) => `• ${error}`).join('\n')}`);
+      return;
+    }
+
     // PRIORIDAD 4: Control de duplicados - advertencia si dos ambientes del mismo bloque tienen las mismas dimensiones
     const currentBloque = (activeFicha.bloque || projectData.bloque || '').trim().toLowerCase();
     const currentLargo = parseFloat(String(activeFicha.largo || '0').replace(',', '.'));
@@ -613,7 +630,8 @@ export default function App() {
         return;
       }
     }
-    await StorageService.saveFicha(activeFicha);
+    await StorageService.saveFicha(fichaToSave);
+    setActiveFicha(fichaToSave);
     const updated = await StorageService.getFichas();
     setFichas(updated);
     setHasUnsavedChanges(false);
@@ -693,6 +711,7 @@ export default function App() {
     }
     setDupCodigo(nextConsecutive(target.codigo));
     setDupAmbiente(nextConsecutive(target.ambiente));
+    setDupConfirmDetails(false);
     setDupTargetId(target.id);
   };
 
@@ -703,8 +722,12 @@ export default function App() {
     const cod = String(dupCodigo || '').trim();
     const amb = String(dupAmbiente || '').trim();
 
-    if (!cod && !amb) {
-      alert('Ingrese al menos el Código o el Ambiente para identificar la nueva ficha.');
+    if (!cod || !amb) {
+      alert('Ingrese el nuevo Código y el nombre del Ambiente antes de confirmar la duplicación.');
+      return;
+    }
+    if (!dupConfirmDetails) {
+      alert('Confirme expresamente el nombre y las dimensiones mostradas antes de crear la copia.');
       return;
     }
 
@@ -752,6 +775,10 @@ export default function App() {
     duplicated.fotos = [];
     duplicated.codigo = cod;
     duplicated.ambiente = amb;
+    const duplicatedState = getWorstSeverityState(duplicated.pat || []).estado;
+    duplicated.estadoDimensional = duplicatedState;
+    duplicated.diagestado = duplicatedState;
+    duplicated.updatedAt = new Date().toISOString();
 
     loadFicha(duplicated);
     setDupTargetId(null);
@@ -1781,6 +1808,16 @@ export default function App() {
                     </div>
                   )}
 
+                  <label className="flex items-start gap-2 p-2 rounded border border-amber-200 bg-amber-50 text-xs text-amber-900">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={dupConfirmDetails}
+                      onChange={(e) => setDupConfirmDetails(e.target.checked)}
+                    />
+                    <span>Confirmo el nombre y las dimensiones mostradas del ambiente de origen para crear esta nueva ficha.</span>
+                  </label>
+
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">Nuevo Código</label>
                     <input
@@ -1818,7 +1855,28 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleConfirmDuplicate}
-                    className="px-3 py-1.5 bg-[#16794b] text-white rounded text-sm font-semibold hover:bg-green-600 cursor-pointer"
+                    disabled={!dupConfirmDetails || !dupCodigo.trim() || !dupAmbiente.trim()}
+                    className={`px-3 py-1.5 bg-[#16794b] text-white rounded text-sm font-semibold hover:bg-green-600 cursor-pointer ${!dupConfirmDetails || !dupCodigo.trim() || !dupAmbiente.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    Confirmar y crear
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+                {/* Manual Modal */}
+        {showManual && <ManualModal onClose={() => setShowManual(false)} />}
+
+        {/* Device Sync & Association Modal (Mobile & PC) */}
+        {showSync && (
+          <DeviceSyncModal
+            fichas={fichas}
+            projectData={projectData}
+            catalogos={catalogos}
+            onImportFichas={async (importedFichas, impProj, impCats) => {
+ text-white rounded text-sm font-semibold hover:bg-green-600 cursor-pointer"
                   >
                     Confirmar y crear
                   </button>
