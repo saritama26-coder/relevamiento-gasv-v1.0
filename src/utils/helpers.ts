@@ -647,14 +647,17 @@ export function getFichaValidationWarnings(ficha: Ficha): string[] {
  * Errores bloqueantes para el guardado de una ficha nueva o modificada.
  * Las advertencias históricas se mantienen separadas y no borran ni invalidan datos antiguos por sí solas.
  */
-export function getFichaBlockingErrors(ficha: Ficha): string[] {
+export function getFichaBlockingErrors(ficha: Ficha, previousFicha?: Ficha): string[] {
   const errors: string[] = [];
   const normalize = (v: string) => String(v || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 
   (ficha.pat || []).forEach((p, idx) => {
     if (p.elemento || p.patologia) {
+      const previous = previousFicha?.pat?.find((row) => row.id === p.id);
+      const changed = !previousFicha || !previous ||
+        previous.cantidad !== p.cantidad || previous.elemento !== p.elemento || previous.patologia !== p.patologia;
       const qty = Number(String(p.cantidad || '').replace(',', '.'));
-      if (!Number.isFinite(qty) || qty <= 0) {
+      if (changed && (!Number.isFinite(qty) || qty <= 0)) {
         errors.push(`Patología fila #${idx + 1}: la cantidad debe ser mayor que cero.`);
       }
     }
@@ -664,22 +667,30 @@ export function getFichaBlockingErrors(ficha: Ficha): string[] {
     const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
     return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no hay puertas?)/.test(text);
   });
-  if (cabinasSinPuertas) {
-    const conflict = [...(ficha.cuan || []), ...(ficha.pat || [])].some((row: any) => {
+  const hasCabinDoorConflict = (candidate: Ficha) => {
+    const noDoors = (candidate.cons || []).some((row) => {
+      const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
+      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no hay puertas?)/.test(text);
+    });
+    if (!noDoors) return false;
+    return [...(candidate.cuan || []), ...(candidate.pat || [])].some((row: any) => {
       const text = normalize(`${row.elemento || ''} ${row.actividad || ''} ${row.patologia || ''} ${row.intervencion || ''}`);
       return text.includes('puerta') && text.includes('cabina') && /(mantenimiento|reparacion|reposicion|cambio)/.test(text);
     });
-    if (conflict) errors.push('No puede registrarse mantenimiento/reparación de puertas de cabinas si el levantamiento indica que no existen puertas.');
+  };
+  if (cabinasSinPuertas && hasCabinDoorConflict(ficha) && (!previousFicha || !hasCabinDoorConflict(previousFicha))) {
+    errors.push('No puede registrarse mantenimiento/reparación de puertas de cabinas si el levantamiento indica que no existen puertas.');
   }
 
-  if ((ficha.pat || []).length > 0) {
-    const obs = normalize(ficha.obs);
-    if (['sin observaciones', 's/o', 'ninguna', 'sin novedad'].includes(obs)) {
-      errors.push('El ambiente tiene patologías; reemplace «Sin observaciones» por una descripción técnica.');
-    }
+  const hasPathologyNoObservationConflict = (candidate: Ficha) =>
+    (candidate.pat || []).length > 0 &&
+    ['sin observaciones', 's/o', 'ninguna', 'sin novedad'].includes(normalize(candidate.obs));
+  if (hasPathologyNoObservationConflict(ficha) && (!previousFicha || !hasPathologyNoObservationConflict(previousFicha))) {
+    errors.push('El ambiente tiene patologías; reemplace «Sin observaciones» por una descripción técnica.');
   }
 
-  const checkUnit = (elemento: string, unidad: string, label: string) => {
+  const checkUnit = (elemento: string, unidad: string, label: string, changed: boolean) => {
+    if (!changed) return;
     const elem = normalize(elemento);
     const unit = normalize(unidad).replace(/²/g, '2');
     if (!elem) return;
@@ -697,14 +708,21 @@ export function getFichaBlockingErrors(ficha: Ficha): string[] {
     }
   };
 
-  (ficha.cons || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Constructivos fila #${i + 1}`));
-  (ficha.equip || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Equipamiento fila #${i + 1}`));
-  (ficha.elec || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Eléctricas fila #${i + 1}`));
-  (ficha.hidro || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Hidrosanitarias fila #${i + 1}`));
-  (ficha.pat || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Patologías fila #${i + 1}`));
+  const changedRow = (rows: any[] | undefined, row: any) => {
+    if (!previousFicha) return true;
+    const previous = (rows || []).find((item) => item.id === row.id);
+    return !previous || previous.elemento !== row.elemento || previous.unidad !== row.unidad;
+  };
+  (ficha.cons || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Constructivos fila #${i + 1}`, changedRow(previousFicha?.cons, r)));
+  (ficha.equip || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Equipamiento fila #${i + 1}`, changedRow(previousFicha?.equip, r)));
+  (ficha.elec || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Eléctricas fila #${i + 1}`, changedRow(previousFicha?.elec, r)));
+  (ficha.hidro || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Hidrosanitarias fila #${i + 1}`, changedRow(previousFicha?.hidro, r)));
+  (ficha.pat || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Patologías fila #${i + 1}`, changedRow(previousFicha?.pat, r)));
 
   (ficha.cons || []).forEach((r, i) => {
-    if (r.dimension) {
+    const previous = previousFicha?.cons?.find((row) => row.id === r.id);
+    const changed = !previousFicha || !previous || previous.dimension !== r.dimension;
+    if (changed && r.dimension) {
       const result = isValidDimensionFormat(r.dimension);
       if (!result.valid) errors.push(`Constructivos fila #${i + 1} (${r.elemento || 'Elemento'}): ${result.reason}`);
     }
