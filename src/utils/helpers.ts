@@ -761,6 +761,7 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
   fichas.forEach((f) => {
     const links = new Set<string>();
     (f.cuan || []).forEach((q, idx) => {
+      if (q.porVerificar) traceProblems.push(`${f.codigo || f.ambiente}: cuantificación ${q.elemento || idx + 1} marcada por verificar.`);
       if (q.origenPatologiaId) {
         if (links.has(q.origenPatologiaId)) traceProblems.push(`${f.codigo || f.ambiente}: actividad duplicada enlazada a patología (${q.elemento || 'Elemento'}).`);
         links.add(q.origenPatologiaId);
@@ -770,6 +771,16 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
           const fromQuant = Number(String(q.cantidad || '').replace(',', '.'));
           if (!Number.isFinite(fromPath) || !Number.isFinite(fromQuant) || Math.abs(fromPath - fromQuant) > 0.004) {
             traceProblems.push(`${f.codigo || f.ambiente}: cantidad de sección 8 no coincide con patología enlazada (${q.elemento || idx + 1}).`);
+          }
+        }
+      }
+      if (q.origenConstructivoId && !q.cantidadManual) {
+        const source = (f.cons || []).find((row) => row.id === q.origenConstructivoId);
+        if (source) {
+          const sourceQty = Number(String(source.cantidad || '').replace(',', '.'));
+          const quantQty = Number(String(q.cantidad || '').replace(',', '.'));
+          if (!Number.isFinite(sourceQty) || !Number.isFinite(quantQty) || Math.abs(sourceQty - quantQty) > 0.004) {
+            traceProblems.push(`${f.codigo || f.ambiente}: sección 8 no coincide con el elemento fuente ${source.elemento || idx + 1}.`);
           }
         }
       }
@@ -840,7 +851,8 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
   fichas.forEach((f) => {
     const sinCuan = !f.cuan || f.cuan.length === 0;
     const sinId = !f.codigo?.trim() || !f.ambiente?.trim();
-    if (sinCuan || sinId) {
+    const incompletoMarcado = Boolean(f.incompleto || (f.cuan || []).some((q) => q.porVerificar));
+    if (sinCuan || sinId || incompletoMarcado) {
       incompletos.push(f.codigo || f.ambiente || 'S/C');
     }
   });
@@ -851,7 +863,7 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
     status: incompletos.length > 0 ? 'warning' : 'ok',
     count: incompletos.length,
     detail: incompletos.length > 0
-      ? `${incompletos.length} ambiente(s) sin cuantificación preliminar o con datos faltantes (${incompletos.slice(0, 3).join(', ')}${incompletos.length > 3 ? '...' : ''}).`
+      ? `${incompletos.length} ambiente(s) sin cuantificación, identificados como incompletos o con cantidades por verificar (${incompletos.slice(0, 3).join(', ')}${incompletos.length > 3 ? '...' : ''}).`
       : 'Todos los ambientes guardados cuentan con cuantificación preliminar e identificación.',
   });
 
