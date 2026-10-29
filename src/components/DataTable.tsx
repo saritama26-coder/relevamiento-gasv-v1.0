@@ -417,13 +417,15 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                           value={String(val)}
                           options={listas[col.dataListId] || []}
                           onChange={(nextValue) => handleUpdate(idx, col.key, nextValue)}
+                          closed={col.catalogClosed}
                           className="w-full min-w-0 p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
                         />
                       ) : (
                         <input
                           type={col.type}
                           step={isQty ? '0.01' : undefined}
-                          className="w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
+                          className={`w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`}
+                          title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
                           value={val}
                           onFocus={() => setActiveCell(cellKey)}
                           onBlur={() => {
