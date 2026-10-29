@@ -465,6 +465,84 @@ export function FichaForm({
     onChange({ pat: updated, cuan: nextCuan, estadoDimensional: state, diagestado: state });
   };
 
+  const normalizeCatalogText = (value: string) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  const finishFamilyForRow = (row: any): 'pintura' | 'ceramica' | '' => {
+    const text = normalizeCatalogText(`${row.elemento || ''} ${row.descripcion || ''}`);
+    if (/pintura|esmalte|latex/.test(text)) return 'pintura';
+    if (/ceramica|porcelanato|azulejo/.test(text)) return 'ceramica';
+    return '';
+  };
+
+  const upsertFinishQuantification = (
+    rows: any[],
+    family: 'pintura' | 'ceramica',
+    amount: number,
+    state: string,
+    sourceExists: boolean
+  ) => {
+    const next = [...rows];
+    let index = next.findIndex((row) => row.origenAcabado === family);
+    if (index < 0) {
+      // Vincula una fila-resumen preexistente creada por el botón antiguo, sin tocar otras actividades.
+      index = next.findIndex((row) => {
+        if (row.origenAcabado || row.origenPatologiaId || row.origenConstructivoId) return false;
+        const text = normalizeCatalogText(`${row.elemento || ''} ${row.actividad || ''}`);
+        return text.includes('segun alcance') && (family === 'pintura' ? /pintura|esmalte|latex/.test(text) : /ceramica|porcelanato|azulejo/.test(text));
+      });
+    }
+    if (!sourceExists) {
+      if (index >= 0) next[index] = { ...next[index], porVerificar: true };
+      return next;
+    }
+
+    const validAmount = Number.isFinite(amount) && amount > 0;
+    const value = validAmount ? amount.toFixed(2) : '';
+    const element = family === 'pintura' ? 'Pintura en paredes' : 'Cerámica';
+    const activity = family === 'pintura'
+      ? 'Cuantificación de pintura desde elementos registrados'
+      : 'Cuantificación de cerámica desde elementos registrados';
+
+    if (index >= 0) {
+      const current = next[index];
+      next[index] = {
+        ...current,
+        codigo: ficha.codigo,
+        elemento: element,
+        actividad,
+        unidad: 'm²',
+        origenAcabado: family,
+        porVerificar: current.cantidadManual ? Boolean(current.porVerificar) : !validAmount,
+        ...(current.cantidadManual ? {} : {
+          cantidad: value,
+          cantidadCalculada: validAmount,
+          cantidadDerivada: value,
+          cantidadManual: false,
+          motivoCantidadManual: '',
+          estado: state,
+          prioridad: priorityFromState(state),
+        }),
+      };
+    } else {
+      next.push({
+        id: Math.random().toString(),
+        codigo: ficha.codigo,
+        elemento: element,
+        actividad,
+        cantidad: value,
+        cantidadCalculada: validAmount,
+        cantidadDerivada: value,
+        cantidadManual: false,
+        motivoCantidadManual: '',
+        unidad: 'm²',
+        estado: state,
+        prioridad: priorityFromState(state),
+        origenAcabado: family,
+        porVerificar: !validAmount,
+      });
+    }
+    return next;
+  };
+
   const handleGenericElemTableChange = (key: 'cons' | 'equip' | 'elec' | 'hidro', newData: any[]) => {
     const prevList = (ficha[key] as any[]) || [];
     const updated = newData.map((row, idx) => {
@@ -485,79 +563,22 @@ export function FichaForm({
       }
       return newRow;
     });
+
     if (key !== 'cons') {
       onChange({ [key]: updated });
       return;
     }
 
-    // Sincroniza únicamente cuantificaciones de pintura/cerámica asociadas al elemento fuente.
-    // Las cantidades manuales se conservan como excepciones auditadas.
-    const normalize = (value: string) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
-    const nextCuan = [...(ficha.cuan || [])];
-    updated.forEach((row) => {
-      const text = normalize(`${row.elemento || ''} ${row.descripcion || ''}`);
-      const family = /pintura|esmalte|latex/.test(text) ? 'pintura' : /ceramica|porcelanato|azulejo/.test(text) ? 'ceramica' : '';
-      if (!family) return;
+    const nextFicha = { ...ficha, cons: updated };
+    const totals = calculateFinishesTotals(nextFicha);
+    const hasCeramicaSource = updated.some((row) => finishFamilyForRow(row) === 'ceramica');
+    const hasPinturaSource = updated.some((row) => finishFamilyForRow(row) === 'pintura');
+    let nextCuan = [...(ficha.cuan || [])];
+    const state = getWorstSeverityState(ficha.pat || []).estado;
 
-      const sourceQty = parseFloat(String(row.cantidad || '').replace(',', '.'));
-      const hasValidQty = Number.isFinite(sourceQty) && sourceQty > 0 && ['m²', 'm2'].includes(normalize(row.unidad).replace('²', '2'));
-      let qIdx = row.id ? nextCuan.findIndex((q) => q.origenConstructivoId === row.id) : -1;
-      if (qIdx < 0 && hasValidQty) {
-        qIdx = nextCuan.findIndex((q) => {
-          if (q.origenConstructivoId || q.cantidadManual) return false;
-          const qText = normalize(`${q.elemento || ''} ${q.actividad || ''}`);
-          const qFamily = /pintura|esmalte|latex/.test(qText) ? 'pintura' : /ceramica|porcelanato|azulejo/.test(qText) ? 'ceramica' : '';
-          const qQty = parseFloat(String(q.cantidad || '').replace(',', '.'));
-          return qFamily === family && Math.abs(qQty - sourceQty) < 0.005 && normalize(q.unidad).replace('²', '2') === 'm2';
-        });
-      }
-
-      const canonicalElement = family === 'pintura' ? 'Pintura en paredes' : (row.elemento || 'Cerámica');
-      const activity = family === 'pintura'
-        ? `Cuantificación de pintura derivada de ${row.elemento || 'elemento constructivo'}`
-        : `Cuantificación de cerámica derivada de ${row.elemento || 'elemento constructivo'}`;
-      const derivedValue = hasValidQty ? sourceQty.toFixed(2) : '';
-      const inheritedManual = Boolean(row.cantidadManual);
-
-      if (qIdx >= 0) {
-        const current = nextCuan[qIdx];
-        nextCuan[qIdx] = {
-          ...current,
-          elemento: current.elemento || canonicalElement,
-          actividad: current.actividad || activity,
-          origenConstructivoId: row.id || current.origenConstructivoId,
-          unidad: 'm²',
-          porVerificar: !hasValidQty,
-          ...(current.cantidadManual ? {} : {
-            cantidad: derivedValue,
-            cantidadCalculada: hasValidQty,
-            cantidadDerivada: derivedValue,
-            cantidadManual: inheritedManual,
-            motivoCantidadManual: inheritedManual ? row.motivoCantidadManual : '',
-          }),
-        };
-      } else {
-        nextCuan.push({
-          id: Math.random().toString(),
-          codigo: ficha.codigo,
-          elemento: canonicalElement,
-          actividad,
-          cantidad: derivedValue,
-          cantidadCalculada: hasValidQty,
-          cantidadDerivada: derivedValue,
-          cantidadManual: inheritedManual,
-          motivoCantidadManual: inheritedManual ? row.motivoCantidadManual : '',
-          unidad: 'm²',
-          estado: row.estado || getWorstSeverityState(ficha.pat || []).estado,
-          prioridad: priorityFromState(row.estado || getWorstSeverityState(ficha.pat || []).estado),
-          origenConstructivoId: row.id,
-          porVerificar: !hasValidQty,
-        });
-      }
-    });
-
-    const currentState = getWorstSeverityState(ficha.pat || []).estado;
-    onChange({ cons: updated, cuan: nextCuan, estadoDimensional: currentState, diagestado: currentState });
+    nextCuan = upsertFinishQuantification(nextCuan, 'ceramica', totals.ceramicaTotal, state, hasCeramicaSource);
+    nextCuan = upsertFinishQuantification(nextCuan, 'pintura', totals.pinturaTotal, state, hasPinturaSource);
+    onChange({ cons: updated, cuan: nextCuan, estadoDimensional: state, diagestado: state });
   };
 
   const fotoCount = Array.isArray(ficha.fotos) ? ficha.fotos.length : 0;
@@ -566,6 +587,8 @@ export function FichaForm({
   const hasMetPhotoTarget = fotoCount >= SUGGESTED_PHOTOS_TARGET;
 
   const finishesTotals = useMemo(() => calculateFinishesTotals(ficha), [ficha]);
+  const hasCeramicaElementSource = (ficha.cons || []).some((row) => /ceramica|porcelanato|azulejo/.test(normalizeCatalogText(`${row.elemento || ''} ${row.descripcion || ''}`)));
+  const hasPinturaElementSource = (ficha.cons || []).some((row) => /pintura|esmalte|latex/.test(normalizeCatalogText(`${row.elemento || ''} ${row.descripcion || ''}`)));
   const worstSeverityInfo = useMemo(() => getWorstSeverityState(ficha.pat), [ficha.pat]);
   const validationWarnings = useMemo(() => getFichaValidationWarnings(ficha), [ficha]);
 
@@ -921,42 +944,26 @@ export function FichaForm({
               {finishesTotals.pinturaTotal > 0 && <span>· Pintura: <strong className="text-blue-900">{finishesTotals.pinturaTotal.toFixed(2)} m²</strong></span>}
             </span>
             <div className="flex flex-wrap gap-2">
-              {finishesTotals.ceramicaTotal > 0 && (
+              {finishesTotals.ceramicaTotal > 0 && hasCeramicaElementSource && (
                 <button
                   type="button"
                   onClick={() => {
-                    const row = {
-                      id: Math.random().toString(),
-                      codigo: ficha.codigo,
-                      elemento: 'Cerámica',
-                      actividad: 'Reposición / reparación de cerámica según alcance',
-                      cantidad: finishesTotals.ceramicaTotal.toFixed(2),
-                      unidad: 'm²',
-                      estado: ficha.estadoDimensional || 'Bueno',
-                      prioridad: priorityFromState(ficha.estadoDimensional || 'Bueno'),
-                    };
-                    onChange({ cuan: [...ficha.cuan, row] });
+                    const state = getWorstSeverityState(ficha.pat || []).estado;
+                    const rows = upsertFinishQuantification([...(ficha.cuan || [])], 'ceramica', finishesTotals.ceramicaTotal, state, hasCeramicaElementSource);
+                    onChange({ cuan: rows });
                   }}
                   className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 rounded font-semibold transition-colors cursor-pointer text-xs"
                 >
                   + Agregar Cerámica ({finishesTotals.ceramicaTotal.toFixed(2)} m²)
                 </button>
               )}
-              {finishesTotals.pinturaTotal > 0 && (
+              {finishesTotals.pinturaTotal > 0 && hasPinturaElementSource && (
                 <button
                   type="button"
                   onClick={() => {
-                    const row = {
-                      id: Math.random().toString(),
-                      codigo: ficha.codigo,
-                      elemento: 'Pintura',
-                      actividad: 'Pintura y resanes de superficies según alcance',
-                      cantidad: finishesTotals.pinturaTotal.toFixed(2),
-                      unidad: 'm²',
-                      estado: ficha.estadoDimensional || 'Bueno',
-                      prioridad: priorityFromState(ficha.estadoDimensional || 'Bueno'),
-                    };
-                    onChange({ cuan: [...ficha.cuan, row] });
+                    const state = getWorstSeverityState(ficha.pat || []).estado;
+                    const rows = upsertFinishQuantification([...(ficha.cuan || [])], 'pintura', finishesTotals.pinturaTotal, state, hasPinturaElementSource);
+                    onChange({ cuan: rows });
                   }}
                   className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 rounded font-semibold transition-colors cursor-pointer text-xs"
                 >
