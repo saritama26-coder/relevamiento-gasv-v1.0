@@ -600,7 +600,7 @@ export function getFichaValidationWarnings(ficha: Ficha): string[] {
   const checkUnit = (elem: string, un: string, tabla: string, idx: number) => {
     const normElem = normalize(elem);
     const normUn = normalize(un);
-    if (!normElem || !normUn) return;
+    if (!normElem) return;
 
     // Pisos, paredes y cielo raso deben ser m²
     if (['piso', 'paredes', 'pared', 'cielo raso', 'cubierta', 'ceramica en piso', 'ceramica en pared', 'pintura en paredes'].some(k => normElem.includes(k))) {
@@ -609,10 +609,10 @@ export function getFichaValidationWarnings(ficha: Ficha): string[] {
       }
     }
 
-    // Piezas fijas, puertas, interruptores, sanitarios deben ser 'u', 'pza' o 'jgo'
+    // Piezas discretas requieren unidad u.
     if (['puerta', 'inodoro', 'lavamanos', 'urinario', 'tomacorriente', 'interruptor', 'lampara', 'luminaria'].some(k => normElem.includes(k))) {
-      if (normUn === 'ml' || normUn === 'm') {
-        warnings.push(`${tabla} Fila #${idx + 1} (${elem}): elemento discreto registrado con unidad lineal "${un}". Se sugiere medir en unidades (u).`);
+      if (normUn !== 'u') {
+        warnings.push(`${tabla} Fila #${idx + 1} (${elem}): pieza discreta registrada con unidad "${un}". La unidad requerida es u.`);
       }
     }
 
@@ -700,11 +700,11 @@ export function getFichaBlockingErrors(ficha: Ficha, previousFicha?: Ficha): str
     const unit = normalize(unidad).replace(/²/g, '2');
     if (!elem) return;
     const surfaces = ['piso', 'pared', 'cielo raso', 'cubierta', 'ceramica en piso', 'ceramica en pared', 'pintura en paredes', 'porcelanato', 'azulejo'];
-    if (surfaces.some((term) => elem.includes(term)) && unit && unit !== 'm2') {
+    if (surfaces.some((term) => elem.includes(term)) && unit !== 'm2') {
       errors.push(`${label} «${elemento}»: la unidad de superficie debe ser m².`);
     }
     const pieces = ['puerta', 'inodoro', 'lavamanos', 'urinario', 'tomacorriente', 'interruptor', 'lampara', 'luminaria'];
-    if (pieces.some((term) => elem.includes(term)) && unit && unit !== 'u') {
+    if (pieces.some((term) => elem.includes(term)) && unit !== 'u') {
       errors.push(`${label} «${elemento}»: la unidad de pieza debe ser u.`);
     }
     const linear = ['zocalo', 'tuberia', 'baranda', 'manguera', 'canaleta', 'borde', 'pasamanos'];
