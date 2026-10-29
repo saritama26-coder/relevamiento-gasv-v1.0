@@ -787,6 +787,7 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
         if (links.has(q.origenPatologiaId)) traceProblems.push(`${f.codigo || f.ambiente}: actividad duplicada enlazada a patología (${q.elemento || 'Elemento'}).`);
         links.add(q.origenPatologiaId);
         const source = (f.pat || []).find((p) => p.id === q.origenPatologiaId);
+        if (!source) traceProblems.push(`${f.codigo || f.ambiente}: la cuantificación «${q.elemento || idx + 1}» conserva un vínculo a una patología eliminada; por verificar.`);
         if (source && !q.cantidadManual) {
           const fromPath = Number(String(source.cantidad || '').replace(',', '.'));
           const fromQuant = Number(String(q.cantidad || '').replace(',', '.'));
@@ -797,6 +798,7 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
       }
       if (q.origenConstructivoId && !q.cantidadManual) {
         const source = (f.cons || []).find((row) => row.id === q.origenConstructivoId);
+        if (!source) traceProblems.push(`${f.codigo || f.ambiente}: la cuantificación «${q.elemento || idx + 1}» conserva un vínculo a un elemento eliminado; por verificar.`);
         if (source) {
           const sourceQty = Number(String(source.cantidad || '').replace(',', '.'));
           const quantQty = Number(String(q.cantidad || '').replace(',', '.'));
