@@ -762,6 +762,7 @@ export interface ProjectVerificationResult {
  */
 export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerificationResult {
   const items: ProjectVerificationItem[] = [];
+  const normalize = (value: string) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 
   // 1. La sección 8 se consolida desde las cantidades registradas por ambiente.
   // Se detectan problemas de trazabilidad en lugar de comparar indiscriminadamente todas las superficies.
