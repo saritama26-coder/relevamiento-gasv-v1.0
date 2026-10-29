@@ -278,7 +278,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
       const derived = parseFloat(String(current.cantidadDerivada).replace(',', '.'));
       if (Number.isFinite(derived) && Math.abs(parsed - derived) > 0.004) {
         const reason = window.prompt(
-          `Este valor fue calculado desde las dimensiones (\${current.dimension || 'dimensiones registradas'}). Indique un motivo breve para la modificación manual:`,
+          `Este valor fue calculado desde las dimensiones (${current.dimension || 'dimensiones registradas'}). Indique un motivo breve para la modificación manual:`,
           ''
         );
         const copy = [...data];
@@ -399,7 +399,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                       </label>
                       {col.type === 'select' ? (
                         <select
-                          className={`w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`} title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
+                          className="w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
                           value={val}
                           onChange={(e) => handleUpdate(idx, col.key, e.target.value)}
                         >
@@ -495,7 +495,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                       <td key={col.key} className="p-1 border border-gray-300">
                         {col.type === 'select' ? (
                           <select
-                            className={`w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px] ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`} title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
+                            className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
                             value={val}
                             onChange={(e) => handleUpdate(idx, col.key, e.target.value)}
                           >
@@ -518,7 +518,8 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                           <input
                             type={col.type}
                             step={isQty ? '0.01' : undefined}
-                            className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
+                            className={`w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px] ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`}
+                            title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
                             value={displayVal}
                             onFocus={() => setActiveCell(cellKey)}
                             onBlur={() => {
