@@ -291,23 +291,71 @@ export function FichaForm({
   };
 
   const handlePasarSeccion8 = () => {
-    const cuanCopia = [...ficha.cuan];
+      const normalize = (value: string) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    const cabinasSinPuertas = (ficha.cons || []).some((row) => {
+      const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
+      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no tienen puertas?|no hay puertas?|carecen de puertas?)/.test(text);
+    });
+    const contradicePuertas = (ficha.pat || []).some((p) => {
+      const text = normalize(`${p.elemento} ${p.patologia} ${p.intervencion}`);
+      return text.includes('puerta') && text.includes('cabina') && /(mantenimiento|reparacion|reposicion|cambio)/.test(text);
+    });
+    if (cabinasSinPuertas && contradicePuertas) {
+      alert('No se generó la cuantificación: el levantamiento indica que las cabinas no tienen puertas, pero existe una patología/actividad relacionada con puertas de cabinas. Verifique los datos.');
+      return;
+    }
+
+    const cuanCopia = [...(ficha.cuan || [])];
+    let generated = 0;
     ficha.pat.forEach((p) => {
-      if (p.elemento && p.patologia) {
+      if (!p.elemento || !p.patologia) return;
+      const actividad = `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`.trim();
+      const estado = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
+      const prioridad = p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja';
+      let existingIdx = p.id ? cuanCopia.findIndex((row) => row.origenPatologiaId === p.id) : -1;
+      if (existingIdx < 0) {
+        existingIdx = cuanCopia.findIndex((row) => {
+          const rowText = normalize(row.actividad || '');
+          return normalize(row.elemento) === normalize(p.elemento) &&
+            rowText.includes(normalize(p.patologia)) &&
+            rowText.includes(normalize(p.intervencion || 'reparacion')) &&
+            !row.origenPatologiaId;
+        });
+      }
+      if (existingIdx >= 0) {
+        const existing = cuanCopia[existingIdx];
+        cuanCopia[existingIdx] = {
+          ...existing,
+          codigo: ficha.codigo,
+          elemento: p.elemento,
+          actividad,
+          unidad: p.unidad,
+          estado,
+          prioridad,
+          origenPatologiaId: p.id || existing.origenPatologiaId,
+          ...(existing.cantidadManual ? {} : { cantidad: p.cantidad, cantidadCalculada: true, cantidadDerivada: p.cantidad }),
+        };
+      } else {
         cuanCopia.push({
           id: Math.random().toString(),
           codigo: ficha.codigo,
           elemento: p.elemento,
-          actividad: `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`,
+          actividad,
           cantidad: p.cantidad,
+          cantidadCalculada: true,
+          cantidadDerivada: p.cantidad,
+          cantidadManual: false,
           unidad: p.unidad,
-          estado: p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular',
-          prioridad: p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja',
+          estado,
+          prioridad,
+          origenPatologiaId: p.id,
         });
       }
+      generated++;
     });
-    onChange({ cuan: cuanCopia });
-    alert(`${ficha.pat.length} actividades generadas. Revise y ajuste en la Sección 8.`);
+    const state = getWorstSeverityState(ficha.pat || []).estado;
+    onChange({ cuan: cuanCopia, estadoDimensional: state, diagestado: state });
+    alert(`${generated} actividad(es) sincronizada(s) con las patologías, sin duplicar las ya enlazadas. Revise la Sección 8.`);
   };
 
   const areaCalculada = useMemo(() => calculateArea(ficha).toFixed(2), [ficha]);
@@ -386,7 +434,120 @@ export function FichaForm({
       return newRow;
     });
 
-    onChange({ pat: updated });
+    const nextCuan = [...(ficha.cuan || [])];
+    const activePathologyIds = new Set(updated.map((row) => row.id).filter(Boolean));
+    for (let idx = 0; idx < nextCuan.length; idx++) {
+      const quantRow = nextCuan[idx];
+      if (quantRow.origenPatologiaId && !activePathologyIds.has(quantRow.origenPatologiaId)) {
+        nextCuan[idx] = { ...quantRow, porVerificar: true };
+      }
+    }
+    updated.forEach((p) => {
+      if (!p.elemento || !p.patologia) return;
+      let qIdx = p.id ? nextCuan.findIndex((row) => row.origenPatologiaId === p.id) : -1;
+      if (qIdx < 0) {
+        const normalize = (v: string) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+        qIdx = nextCuan.findIndex((row) =>
+          !row.cantidadManual &&
+          normalize(row.elemento) === normalize(p.elemento) &&
+          normalize(row.actividad).includes(normalize(p.patologia)) &&
+          normalize(row.actividad).includes(normalize(p.intervencion || 'reparacion'))
+        );
+      }
+      if (qIdx >= 0 && !nextCuan[qIdx].cantidadManual) {
+        const state = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
+        nextCuan[qIdx] = {
+          ...nextCuan[qIdx],
+          cantidad: p.cantidad,
+          cantidadCalculada: true,
+          cantidadDerivada: p.cantidad,
+          unidad: p.unidad,
+          estado: state,
+          prioridad: p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja',
+          origenPatologiaId: p.id || nextCuan[qIdx].origenPatologiaId,
+        };
+      }
+    });
+    const state = getWorstSeverityState(updated).estado;
+    onChange({ pat: updated, cuan: nextCuan, estadoDimensional: state, diagestado: state });
+  };
+
+  const normalizeCatalogText = (value: string) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  const finishFamilyForRow = (row: any): 'pintura' | 'ceramica' | '' => {
+    const text = normalizeCatalogText(`${row.elemento || ''} ${row.descripcion || ''}`);
+    if (/pintura|esmalte|latex/.test(text)) return 'pintura';
+    if (/ceramica|porcelanato|azulejo/.test(text)) return 'ceramica';
+    return '';
+  };
+
+  const upsertFinishQuantification = (
+    rows: any[],
+    family: 'pintura' | 'ceramica',
+    amount: number,
+    state: string,
+    sourceExists: boolean
+  ) => {
+    const next = [...rows];
+    let index = next.findIndex((row) => row.origenAcabado === family);
+    if (index < 0) {
+      // Vincula una fila-resumen preexistente creada por el botón antiguo, sin tocar otras actividades.
+      index = next.findIndex((row) => {
+        if (row.origenAcabado || row.origenPatologiaId || row.origenConstructivoId) return false;
+        const text = normalizeCatalogText(`${row.elemento || ''} ${row.actividad || ''}`);
+        return text.includes('segun alcance') && (family === 'pintura' ? /pintura|esmalte|latex/.test(text) : /ceramica|porcelanato|azulejo/.test(text));
+      });
+    }
+    if (!sourceExists) {
+      if (index >= 0) next[index] = { ...next[index], porVerificar: true };
+      return next;
+    }
+
+    const validAmount = Number.isFinite(amount) && amount > 0;
+    const value = validAmount ? amount.toFixed(2) : '';
+    const element = family === 'pintura' ? 'Pintura en paredes' : 'Cerámica';
+    const activity = family === 'pintura'
+      ? 'Cuantificación de pintura desde elementos registrados'
+      : 'Cuantificación de cerámica desde elementos registrados';
+
+    if (index >= 0) {
+      const current = next[index];
+      next[index] = {
+        ...current,
+        codigo: ficha.codigo,
+        elemento: element,
+        actividad: activity,
+        unidad: 'm²',
+        origenAcabado: family,
+        porVerificar: !validAmount || Boolean(current.porVerificar),
+        ...(current.cantidadManual ? {} : {
+          cantidad: value,
+          cantidadCalculada: validAmount,
+          cantidadDerivada: value,
+          cantidadManual: false,
+          motivoCantidadManual: '',
+          estado: state,
+          prioridad: priorityFromState(state),
+        }),
+      };
+    } else {
+      next.push({
+        id: Math.random().toString(),
+        codigo: ficha.codigo,
+        elemento: element,
+        actividad: activity,
+        cantidad: value,
+        cantidadCalculada: validAmount,
+        cantidadDerivada: value,
+        cantidadManual: false,
+        motivoCantidadManual: '',
+        unidad: 'm²',
+        estado: state,
+        prioridad: priorityFromState(state),
+        origenAcabado: family,
+        porVerificar: !validAmount,
+      });
+    }
+    return next;
   };
 
   const handleGenericElemTableChange = (key: 'cons' | 'equip' | 'elec' | 'hidro', newData: any[]) => {
@@ -409,7 +570,22 @@ export function FichaForm({
       }
       return newRow;
     });
-    onChange({ [key]: updated });
+
+    if (key !== 'cons') {
+      onChange({ [key]: updated });
+      return;
+    }
+
+    const nextFicha = { ...ficha, cons: updated };
+    const totals = calculateFinishesTotals(nextFicha);
+    const hasCeramicaSource = updated.some((row) => finishFamilyForRow(row) === 'ceramica');
+    const hasPinturaSource = updated.some((row) => finishFamilyForRow(row) === 'pintura');
+    let nextCuan = [...(ficha.cuan || [])];
+    const state = getWorstSeverityState(ficha.pat || []).estado;
+
+    nextCuan = upsertFinishQuantification(nextCuan, 'ceramica', totals.ceramicaTotal, state, hasCeramicaSource);
+    nextCuan = upsertFinishQuantification(nextCuan, 'pintura', totals.pinturaTotal, state, hasPinturaSource);
+    onChange({ cons: updated, cuan: nextCuan, estadoDimensional: state, diagestado: state });
   };
 
   const fotoCount = Array.isArray(ficha.fotos) ? ficha.fotos.length : 0;
@@ -418,6 +594,8 @@ export function FichaForm({
   const hasMetPhotoTarget = fotoCount >= SUGGESTED_PHOTOS_TARGET;
 
   const finishesTotals = useMemo(() => calculateFinishesTotals(ficha), [ficha]);
+  const hasCeramicaElementSource = (ficha.cons || []).some((row) => /ceramica|porcelanato|azulejo/.test(normalizeCatalogText(`${row.elemento || ''} ${row.descripcion || ''}`)));
+  const hasPinturaElementSource = (ficha.cons || []).some((row) => /pintura|esmalte|latex/.test(normalizeCatalogText(`${row.elemento || ''} ${row.descripcion || ''}`)));
   const worstSeverityInfo = useMemo(() => getWorstSeverityState(ficha.pat), [ficha.pat]);
   const validationWarnings = useMemo(() => getFichaValidationWarnings(ficha), [ficha]);
 
@@ -613,8 +791,9 @@ export function FichaForm({
             <label className="text-xs font-bold text-gray-500">Estado general de conservación</label>
             <select
               className="w-full p-2 border rounded"
-              value={ficha.estadoDimensional || ficha.diagestado || 'Bueno'}
-              onChange={(e) => onChange({ estadoDimensional: e.target.value, diagestado: e.target.value })}
+              value={worstSeverityInfo.estado}
+              disabled
+              title="El estado se calcula desde la severidad máxima de las patologías registradas."
             >
               {ESTADOS.map((st) => (
                 <option key={st} value={st}>
@@ -662,11 +841,11 @@ export function FichaForm({
           data={ficha.cons}
           onChange={(newData) => handleGenericElemTableChange('cons', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem', catalogClosed: true },
             { key: 'descripcion', label: 'Descripción', type: 'text' },
             { key: 'dimension', label: 'Dimensión', type: 'text' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -682,10 +861,10 @@ export function FichaForm({
           data={ficha.equip}
           onChange={(newData) => handleGenericElemTableChange('equip', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem', catalogClosed: true },
             { key: 'descripcion', label: 'Descripción', type: 'text' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -701,9 +880,9 @@ export function FichaForm({
           data={ficha.elec}
           onChange={(newData) => handleGenericElemTableChange('elec', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem', catalogClosed: true },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '15%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '15%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '20%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -719,9 +898,9 @@ export function FichaForm({
           data={ficha.hidro}
           onChange={(newData) => handleGenericElemTableChange('hidro', newData)}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem', catalogClosed: true },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '15%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '15%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '20%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
@@ -746,11 +925,11 @@ export function FichaForm({
           data={ficha.pat}
           onChange={handlePatTableChange}
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem' },
-            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos' },
-            { key: 'ubicacion', label: 'Ubicación', type: 'text', dataListId: 'list-pat-ubic' },
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', catalogClosed: true },
+            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', catalogClosed: true },
+            { key: 'ubicacion', label: 'Ubicación', type: 'text', dataListId: 'list-pat-ubic', catalogClosed: true },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '15%' },
             { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES },
           ]}
@@ -772,42 +951,26 @@ export function FichaForm({
               {finishesTotals.pinturaTotal > 0 && <span>· Pintura: <strong className="text-blue-900">{finishesTotals.pinturaTotal.toFixed(2)} m²</strong></span>}
             </span>
             <div className="flex flex-wrap gap-2">
-              {finishesTotals.ceramicaTotal > 0 && (
+              {finishesTotals.ceramicaTotal > 0 && hasCeramicaElementSource && (
                 <button
                   type="button"
                   onClick={() => {
-                    const row = {
-                      id: Math.random().toString(),
-                      codigo: ficha.codigo,
-                      elemento: 'Cerámica',
-                      actividad: 'Reposición / reparación de cerámica según alcance',
-                      cantidad: finishesTotals.ceramicaTotal.toFixed(2),
-                      unidad: 'm²',
-                      estado: ficha.estadoDimensional || 'Bueno',
-                      prioridad: priorityFromState(ficha.estadoDimensional || 'Bueno'),
-                    };
-                    onChange({ cuan: [...ficha.cuan, row] });
+                    const state = getWorstSeverityState(ficha.pat || []).estado;
+                    const rows = upsertFinishQuantification([...(ficha.cuan || [])], 'ceramica', finishesTotals.ceramicaTotal, state, hasCeramicaElementSource);
+                    onChange({ cuan: rows });
                   }}
                   className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 rounded font-semibold transition-colors cursor-pointer text-xs"
                 >
                   + Agregar Cerámica ({finishesTotals.ceramicaTotal.toFixed(2)} m²)
                 </button>
               )}
-              {finishesTotals.pinturaTotal > 0 && (
+              {finishesTotals.pinturaTotal > 0 && hasPinturaElementSource && (
                 <button
                   type="button"
                   onClick={() => {
-                    const row = {
-                      id: Math.random().toString(),
-                      codigo: ficha.codigo,
-                      elemento: 'Pintura',
-                      actividad: 'Pintura y resanes de superficies según alcance',
-                      cantidad: finishesTotals.pinturaTotal.toFixed(2),
-                      unidad: 'm²',
-                      estado: ficha.estadoDimensional || 'Bueno',
-                      prioridad: priorityFromState(ficha.estadoDimensional || 'Bueno'),
-                    };
-                    onChange({ cuan: [...ficha.cuan, row] });
+                    const state = getWorstSeverityState(ficha.pat || []).estado;
+                    const rows = upsertFinishQuantification([...(ficha.cuan || [])], 'pintura', finishesTotals.pinturaTotal, state, hasPinturaElementSource);
+                    onChange({ cuan: rows });
                   }}
                   className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 rounded font-semibold transition-colors cursor-pointer text-xs"
                 >
@@ -889,12 +1052,16 @@ export function FichaForm({
             </div>
             <div>
               <label className="text-xs font-bold text-gray-500">6. Unidad</label>
-              <input
+              <select
                 className="w-full p-2 border rounded"
-                list="list-unidades"
                 value={asistente.unidad}
                 onChange={(e) => setAsistente({ ...asistente, unidad: e.target.value })}
-              />
+              >
+                <option value="">Seleccione unidad...</option>
+                {(listas['list-unidades'] || []).map((unidad) => (
+                  <option key={unidad} value={unidad}>{unidad}</option>
+                ))}
+              </select>
             </div>
             <div className="sm:col-span-2 md:col-span-2 flex items-end">
               <button
@@ -918,10 +1085,10 @@ export function FichaForm({
           onChange={(newData) => onChange({ cuan: newData })}
           columns={[
             { key: 'codigo', label: 'Código', type: 'text', width: '10%' },
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-pat-elem' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-pat-elem', catalogClosed: true },
             { key: 'actividad', label: 'Trabajo a ejecutar', type: 'text' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', catalogClosed: true, width: '10%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
             { key: 'prioridad', label: 'Prioridad', type: 'select', options: PRIORIDADES, width: '15%' },
           ]}

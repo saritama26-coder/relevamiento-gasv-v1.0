@@ -7,6 +7,11 @@ export interface ConstructivoRow {
   unidad: string;
   estado: string;
   observacion: string;
+  cantidadCalculada?: boolean;
+  cantidadDerivada?: string;
+  cantidadManual?: boolean;
+  motivoCantidadManual?: string;
+  porVerificar?: boolean;
 }
 
 export interface EquipamientoRow {
@@ -46,6 +51,10 @@ export interface PatologiaRow {
   unidad: string;
   severidad: string;
   intervencion: string;
+  cantidadCalculada?: boolean;
+  cantidadDerivada?: string;
+  cantidadManual?: boolean;
+  motivoCantidadManual?: string;
 }
 
 export interface CuantificacionRow {
@@ -57,6 +66,14 @@ export interface CuantificacionRow {
   unidad: string;
   estado: string;
   prioridad: string;
+  origenPatologiaId?: string;
+  origenConstructivoId?: string;
+  origenAcabado?: 'pintura' | 'ceramica';
+  cantidadCalculada?: boolean;
+  cantidadDerivada?: string;
+  cantidadManual?: boolean;
+  motivoCantidadManual?: string;
+  porVerificar?: boolean;
 }
 
 export interface FotoRegistro {
@@ -98,6 +115,9 @@ export interface Ficha {
   fir3: string;
   fir4: string;
   updatedAt: string;
+  incompleto?: boolean;
+  motivoIncompleto?: string;
+  porVerificar?: boolean;
 }
 
 export interface ProjectData {

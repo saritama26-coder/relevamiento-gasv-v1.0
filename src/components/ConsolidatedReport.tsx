@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import { Printer, X, FileText, Layers, Check } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
-import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist } from '../utils/helpers';
+import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist, getWorstSeverityState } from '../utils/helpers';
 import { GSARITAMA_HEADER_LOGO } from '../constants/logoData';
 
 interface ConsolidatedReportProps {
@@ -139,7 +139,7 @@ export function ConsolidatedReport({
     const c: Record<string, number> = { Bueno: 0, Regular: 0, Malo: 0, Crítico: 0 };
     sortedFichas.forEach((f) => {
       total += calculateArea(f);
-      const st = f.estadoDimensional || f.diagestado || 'Regular';
+      const st = getWorstSeverityState(f.pat || []).estado;
       if (c[st] !== undefined) c[st]++;
     });
     return { areaTotal: total, counts: c };
@@ -148,7 +148,7 @@ export function ConsolidatedReport({
   const consolidatedCuan = useMemo(() => {
     const map: Record<
       string,
-      { elemento: string; actividad: string; unidad: string; total: number; ambientes: Set<string> }
+      { elemento: string; actividad: string; unidad: string; total: number; ambientes: Set<string>; manualReasons: Set<string>; porVerificar: boolean }
     > = {};
 
     sortedFichas.forEach((f) => {
@@ -157,7 +157,7 @@ export function ConsolidatedReport({
         const act = (item.actividad || '').trim();
         const un = (item.unidad || 'u').trim();
         const qty = parseFloat(String(item.cantidad).replace(',', '.'));
-        if (!isNaN(qty) && qty > 0 && (elem || act)) {
+        if ((!isNaN(qty) && qty > 0 || item.porVerificar) && (elem || act)) {
           const key = `${elem.toLowerCase()}|${act.toLowerCase()}|${un.toLowerCase()}`;
           if (!map[key]) {
             map[key] = {
@@ -166,10 +166,14 @@ export function ConsolidatedReport({
               unidad: un,
               total: 0,
               ambientes: new Set(),
+              manualReasons: new Set(),
+              porVerificar: false,
             };
           }
-          map[key].total += qty;
+          map[key].total += !isNaN(qty) && qty > 0 ? qty : 0;
           map[key].ambientes.add(f.codigo || f.ambiente || 'S/N');
+          if (item.cantidadManual) map[key].manualReasons.add(`${f.codigo || f.ambiente || 'S/C'}: ${item.motivoCantidadManual || 'motivo no consignado'}`);
+          if (item.porVerificar) map[key].porVerificar = true;
         }
       });
     });
@@ -404,6 +408,8 @@ export function ConsolidatedReport({
                     <td className="px-3 py-2 border border-slate-300">{item.actividad}</td>
                     <td className="px-3 py-2 border border-slate-300 text-right font-bold text-blue-700">
                       {item.total.toFixed(2)}
+                      {item.porVerificar && <div className="text-[9px] font-bold text-amber-800 print:text-black">POR VERIFICAR</div>}
+                      {item.manualReasons.size > 0 && <div className="text-[9px] font-semibold text-amber-800 print:text-black">MODIFICADO MANUALMENTE: {[...item.manualReasons].join('; ')}</div>}
                     </td>
                     <td className="px-3 py-2 border border-slate-300 text-center">{item.unidad}</td>
                     <td className="px-3 py-2 border border-slate-300 text-center text-xs text-slate-500">
@@ -551,7 +557,11 @@ export function ConsolidatedReport({
                         <tr key={rIdx}>
                           <td className="p-1 border border-slate-300">{row.elemento}</td>
                           <td className="p-1 border border-slate-300">{row.actividad}</td>
-                          <td className="p-1 border border-slate-300 text-right font-bold">{row.cantidad}</td>
+                          <td className="p-1 border border-slate-300 text-right font-bold">
+                            {row.cantidad || '—'}
+                            {row.porVerificar && <div className="text-[9px] font-black text-amber-800 print:text-black">POR VERIFICAR</div>}
+                            {row.cantidadManual && <div className="text-[9px] font-semibold text-amber-800 print:text-black">MANUAL: {row.motivoCantidadManual || 'motivo no consignado'}</div>}
+                          </td>
                           <td className="p-1 border border-slate-300 text-center">{row.unidad}</td>
                           <td className="p-1 border border-slate-300">{row.prioridad}</td>
                         </tr>
@@ -568,14 +578,14 @@ export function ConsolidatedReport({
                 </h3>
                 <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-3 rounded border border-slate-200">
                   <div>
-                    <span className="font-bold text-slate-600">Estado general:</span> {f.estadoDimensional || f.diagestado || 'No consignado'}
+                    <span className="font-bold text-slate-600">Estado general:</span> {getWorstSeverityState(f.pat || []).estado}
                   </div>
                   <div>
                     <span className="font-bold text-slate-600">Intervención recomendada:</span> {f.interv || 'No consignada'}
                   </div>
                   <div className="col-span-2">
                     <span className="font-bold text-slate-600">Observaciones generales:</span>
-                    <p className="mt-1 whitespace-pre-wrap">{f.obs || f.diag || f.obsdim || 'Sin observaciones'}</p>
+                    <p className="mt-1 whitespace-pre-wrap">{`Estado del diagnóstico: ${getWorstSeverityState(f.pat || []).estado}.\n`}{f.obs || f.diag || f.obsdim || 'Sin observaciones'}</p>
                   </div>
                 </div>
               </div>

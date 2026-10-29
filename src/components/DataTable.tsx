@@ -10,6 +10,7 @@ export interface ColumnDef {
   width?: string;
   options?: string[];
   dataListId?: string;
+  catalogClosed?: boolean;
 }
 
 interface DataTableProps {
@@ -30,6 +31,7 @@ interface CatalogInputProps {
   options: string[];
   onChange: (value: string) => void;
   className: string;
+  closed?: boolean;
 }
 
 /**
@@ -37,19 +39,26 @@ interface CatalogInputProps {
  * Unlike the browser's native datalist, this opens the full catalog on demand
  * and still allows custom values to be typed.
  */
-function CatalogInput({ value, options, onChange, className }: CatalogInputProps) {
+function CatalogInput({ value, options, onChange, className, closed = false }: CatalogInputProps) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const lastValidValueRef = useRef(value ?? '');
+  const normalizeOption = (input: string) => String(input || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+
+  useEffect(() => {
+    const matchingOption = options.find((option) => normalizeOption(option) === normalizeOption(String(value ?? '')));
+    if (matchingOption) lastValidValueRef.current = matchingOption;
+  }, [value, options]);
 
   const positionMenu = () => {
     const rect = inputRef.current?.getBoundingClientRect();
     if (!rect || typeof window === 'undefined') return;
     const maxHeight = Math.min(260, Math.max(100, window.innerHeight - 24));
-    const estimatedHeight = Math.min(Math.max(options.length * 34 + 8, 44), maxHeight);
+    const estimatedHeight = Math.min(Math.max(normalizedOptions.length * 34 + 8, 44), maxHeight);
     const above = window.innerHeight - rect.bottom < estimatedHeight && rect.top > estimatedHeight;
     const top = above
       ? Math.max(8, rect.top - estimatedHeight - 4)
@@ -96,11 +105,12 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
     };
   }, [open]);
 
-  const filteredOptions = options.filter((option) => {
+  const normalizedOptions = options.filter((option, index, all) =>
+    all.findIndex((candidate) => normalizeOption(candidate) === normalizeOption(option)) === index
+  );
+  const filteredOptions = normalizedOptions.filter((option) => {
     if (!filter.trim()) return true;
-    const normOption = option.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const normFilter = filter.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return normOption.includes(normFilter);
+    return normalizeOption(option).includes(normalizeOption(filter));
   });
 
   return (
@@ -113,6 +123,14 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
           className={className + ' pr-7'}
           value={value ?? ''}
           onFocus={() => openMenu(true)}
+          onBlur={() => {
+            if (closed) {
+              const matchingOption = options.find((option) => normalizeOption(option) === normalizeOption(String(value ?? '')));
+              onChange(matchingOption || lastValidValueRef.current);
+            }
+            setFilter('');
+            setOpen(false);
+          }}
           onChange={(event) => {
             const nextValue = event.target.value;
             onChange(nextValue);
@@ -158,11 +176,9 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
                 key={option}
                 className="block w-full px-3 py-2 text-left text-sm text-slate-800 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer"
                 onMouseDown={(event) => {
+                  // Confirmar la selección una sola vez antes de que el input pierda el foco.
+                  // Evita que mousedown y click ejecuten dos actualizaciones consecutivas.
                   event.preventDefault();
-                  event.stopPropagation();
-                  handleSelectOption(option);
-                }}
-                onClick={(event) => {
                   event.stopPropagation();
                   handleSelectOption(option);
                 }}
@@ -188,7 +204,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
 
   const getCustomTokens = (row: any) => {
     return columns
-      .filter((col) => col.dataListId && isCustomValue(listas, col.dataListId, row[col.key]))
+      .filter((col) => col.dataListId && !col.catalogClosed && isCustomValue(listas, col.dataListId, row[col.key]))
       .map((col) => ({
         listId: col.dataListId!,
         valor: String(row[col.key]).trim(),
@@ -230,22 +246,66 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
       }
     }
 
-    // Si se modifica 'dimension' en elementos con unidad 'm²', calcular largo * ancho automáticamente
-    if (key === 'dimension' && (updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2' || !updatedRow.unidad)) {
-      const s = String(value || '').replace(/\s*(m|ml|mts)\b/gi, '').trim();
-      const match = s.match(/^([0-9]+(?:[.,][0-9]+)?)\s*([xX*×])\s*([0-9]+(?:[.,][0-9]+)?)$/);
+    // Si la dimensión de una superficie es válida se calcula; si queda mal formada, se marca pendiente.
+    if ((key === 'dimension' || key === 'unidad') && (updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2' || !updatedRow.unidad)) {
+      const s = String(updatedRow.dimension || '').trim();
+      const match = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*([xX*×])\s*([0-9]+(?:\.[0-9]+)?)\s*m$/);
       if (match) {
-        const l = parseFloat(match[1].replace(',', '.'));
-        const a = parseFloat(match[3].replace(',', '.'));
-        if (!isNaN(l) && !isNaN(a) && l > 0 && a > 0) {
-          updatedRow.cantidad = (l * a).toFixed(2);
+        const l = parseFloat(match[1]);
+        const a = parseFloat(match[3]);
+        if (Number.isFinite(l) && Number.isFinite(a) && l > 0 && a > 0) {
+          const derived = (l * a).toFixed(2);
+          if (!updatedRow.cantidadManual) updatedRow.cantidad = derived;
+          updatedRow.cantidadDerivada = derived;
+          updatedRow.cantidadCalculada = !updatedRow.cantidadManual;
+          updatedRow.porVerificar = false;
+          if (!updatedRow.cantidadManual) updatedRow.motivoCantidadManual = '';
           if (!updatedRow.unidad) updatedRow.unidad = 'm²';
+        }
+      } else if (s || key === 'dimension') {
+        if (updatedRow.cantidadCalculada || updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2') {
+          updatedRow.porVerificar = true;
         }
       }
     }
 
     copy[idx] = updatedRow;
     onChange(copy);
+  };
+
+  const handleQuantityCommit = (idx: number, rawValue: any) => {
+    const current = data[idx];
+    if (!current) return;
+    const parsed = parseFloat(String(rawValue ?? '').replace(',', '.'));
+    if (!Number.isFinite(parsed)) return;
+    const formatted = parsed.toFixed(2);
+
+    if (current.cantidadCalculada && !current.cantidadManual && current.cantidadDerivada) {
+      const derived = parseFloat(String(current.cantidadDerivada).replace(',', '.'));
+      if (Number.isFinite(derived) && Math.abs(parsed - derived) > 0.004) {
+        const reason = window.prompt(
+          `Este valor fue calculado desde las dimensiones (${current.dimension || 'dimensiones registradas'}). Indique un motivo breve para la modificación manual:`,
+          ''
+        );
+        const copy = [...data];
+        const row = { ...current };
+        if (!reason || !reason.trim()) {
+          row.cantidad = current.cantidadDerivada;
+          row.cantidadCalculada = true;
+          row.cantidadManual = false;
+          row.motivoCantidadManual = '';
+        } else {
+          row.cantidad = formatted;
+          row.cantidadCalculada = false;
+          row.cantidadManual = true;
+          row.motivoCantidadManual = reason.trim();
+        }
+        copy[idx] = row;
+        onChange(copy);
+        return;
+      }
+    }
+    handleUpdate(idx, 'cantidad', formatted);
   };
 
   const handleDelete = (idx: number) => {
@@ -361,20 +421,22 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                           value={String(val)}
                           options={listas[col.dataListId] || []}
                           onChange={(nextValue) => handleUpdate(idx, col.key, nextValue)}
+                          closed={col.catalogClosed}
                           className="w-full min-w-0 p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
                         />
                       ) : (
                         <input
                           type={col.type}
                           step={isQty ? '0.01' : undefined}
-                          className="w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
+                          className={`w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`}
+                          title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
                           value={val}
                           onFocus={() => setActiveCell(cellKey)}
                           onBlur={() => {
                             if (isQty) {
                               const parsed = parseFloat(String(val).replace(',', '.'));
                               if (!isNaN(parsed)) {
-                                handleUpdate(idx, col.key, parsed.toFixed(2));
+                                handleQuantityCommit(idx, parsed.toFixed(2));
                               }
                             }
                             setActiveCell(null);
@@ -457,20 +519,22 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                             value={String(val)}
                             options={listas[col.dataListId] || []}
                             onChange={(nextValue) => handleUpdate(idx, col.key, nextValue)}
+                            closed={col.catalogClosed}
                             className="w-full min-w-0 p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
                           />
                         ) : (
                           <input
                             type={col.type}
                             step={isQty ? '0.01' : undefined}
-                            className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
+                            className={`w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px] ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`}
+                            title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
                             value={displayVal}
                             onFocus={() => setActiveCell(cellKey)}
                             onBlur={() => {
                               if (isQty) {
                                 const parsed = parseFloat(String(val).replace(',', '.'));
                                 if (!isNaN(parsed)) {
-                                  handleUpdate(idx, col.key, parsed.toFixed(2));
+                                  handleQuantityCommit(idx, parsed.toFixed(2));
                                 }
                               }
                               setActiveCell(null);

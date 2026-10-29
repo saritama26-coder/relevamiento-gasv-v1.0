@@ -178,7 +178,7 @@ export function exportCSV(fichas: Ficha[], projectData: ProjectData, porVerifica
   }
 
   rows.push([
-    'Proyecto', 'Ubicación', 'Bloque', 'Nivel', 'Ambiente', 'Código', 'Elemento', 'Actividad', 'Cantidad', 'Unidad', 'Estado', 'Prioridad'
+    'Proyecto', 'Ubicación', 'Bloque', 'Nivel', 'Ambiente', 'Código', 'Elemento', 'Actividad', 'Cantidad', 'Unidad', 'Estado', 'Prioridad', 'Verificación'
   ]);
 
   fichas.forEach((ficha) => {
@@ -196,7 +196,8 @@ export function exportCSV(fichas: Ficha[], projectData: ProjectData, porVerifica
           item.cantidad || '',
           item.unidad || '',
           item.estado || '',
-          item.prioridad || ''
+          item.prioridad || '',
+          item.porVerificar ? 'POR VERIFICAR' : item.cantidadManual ? `MODIFICADO MANUALMENTE: ${item.motivoCantidadManual || 'motivo no consignado'}` : ''
         ]);
       }
     });
@@ -475,20 +476,18 @@ export function isValidDimensionFormat(dimStr: string): { valid: boolean; reason
   const s = String(dimStr || '').trim();
   if (!s) return { valid: true };
 
-  if (s.toLowerCase().includes('m2') || s.toLowerCase().includes('m²')) {
-    return { valid: false, reason: 'Las dimensiones lineales no deben incluir "m²". Indique medidas como "2.50 x 3.00 m".' };
+  if (/m\s*2|m²/i.test(s)) {
+    return { valid: false, reason: 'Use unidad lineal "m", no "m2" ni "m²". Ejemplo: "2.50 x 3.00 m".' };
   }
-
-  // Detectar secuencias con más de un punto decimal en un número (ej. "0.7.0")
-  if (/\d+\.\d+\.\d+/.test(s)) {
-    return { valid: false, reason: 'Número con doble punto decimal detectado (ej. "0.7.0").' };
+  const match = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*[xX*×]\s*([0-9]+(?:\.[0-9]+)?)\s*m$/);
+  if (!match) {
+    return { valid: false, reason: 'Formato inválido. Use números con punto decimal y unidad m, por ejemplo "0.85 x 1.60 m".' };
   }
-
-  // Detectar formato con punto pegado a la x sin dígito (ej. "8.30x.0.60")
-  if (/[xX*×]\s*\.\d+/.test(s) && !/[xX*×]\s*0\.\d+/.test(s)) {
-    return { valid: false, reason: 'Formato de multiplicación dimensional incompleto o mal puntuado.' };
+  const largo = Number(match[1]);
+  const ancho = Number(match[2]);
+  if (!Number.isFinite(largo) || !Number.isFinite(ancho) || largo <= 0 || ancho <= 0) {
+    return { valid: false, reason: 'Las dimensiones deben ser números mayores que cero.' };
   }
-
   return { valid: true };
 }
 
@@ -496,30 +495,34 @@ export function isValidDimensionFormat(dimStr: string): { valid: boolean; reason
  * Calcula los totales sumados de cerámica (m²) y pintura (m²) a partir de las secciones del ambiente.
  */
 export function calculateFinishesTotals(ficha: Ficha): { ceramicaTotal: number; pinturaTotal: number } {
-  let ceramicaTotal = 0;
-  let pinturaTotal = 0;
+  const normalize = (v: string) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  const sumRows = (rows: any[], family: 'ceramica' | 'pintura') =>
+    (rows || []).reduce((sum, row) => {
+      if (row.porVerificar) return sum;
+      const text = normalize(`${row.elemento || ''} ${row.descripcion || ''} ${row.patologia || ''} ${row.actividad || ''}`);
+      const unit = normalize(row.unidad || '');
+      const isMatch = family === 'ceramica'
+        ? /ceramica|porcelanato|azulejo/.test(text)
+        : /pintura|esmalte|latex/.test(text);
+      if (!isMatch || !(unit === 'm²' || unit === 'm2' || unit === '')) return sum;
+      const qty = parseFloat(String(row.cantidad || '0').replace(',', '.'));
+      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
+    }, 0);
 
-  const normalize = (v: string) => (v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-  const processItem = (elem: string, desc: string, qtyStr: string, unitStr: string) => {
-    const text = normalize(`${elem} ${desc}`);
-    const qty = parseFloat(String(qtyStr || '').replace(',', '.')) || 0;
-    if (qty <= 0) return;
-
-    if (text.includes('ceramica') || text.includes('porcelanato') || text.includes('azulejo')) {
-      ceramicaTotal += qty;
-    }
-    if (text.includes('pintura') || text.includes('esmalte') || text.includes('latex')) {
-      pinturaTotal += qty;
-    }
-  };
-
-  (ficha.cons || []).forEach((c) => processItem(c.elemento, c.descripcion, c.cantidad, c.unidad));
-  (ficha.pat || []).forEach((p) => processItem(p.elemento, p.patologia, p.cantidad, p.unidad));
-
+  // Evita contar dos veces la misma superficie: se prioriza el inventario constructivo.
+  // Las patologías solo sirven como fuente alternativa cuando no existe un elemento de ese acabado.
+  const hasConsFamily = (family: 'ceramica' | 'pintura') =>
+    (ficha.cons || []).some((row) => {
+      const text = normalize(`${row.elemento || ''} ${row.descripcion || ''}`);
+      return family === 'ceramica' ? /ceramica|porcelanato|azulejo/.test(text) : /pintura|esmalte|latex/.test(text);
+    });
+  const consCeramica = sumRows(ficha.cons || [], 'ceramica');
+  const patCeramica = sumRows(ficha.pat || [], 'ceramica');
+  const consPintura = sumRows(ficha.cons || [], 'pintura');
+  const patPintura = sumRows(ficha.pat || [], 'pintura');
   return {
-    ceramicaTotal: parseFloat(ceramicaTotal.toFixed(2)),
-    pinturaTotal: parseFloat(pinturaTotal.toFixed(2)),
+    ceramicaTotal: parseFloat(((hasConsFamily('ceramica') ? consCeramica : patCeramica)).toFixed(2)),
+    pinturaTotal: parseFloat(((hasConsFamily('pintura') ? consPintura : patPintura)).toFixed(2)),
   };
 }
 
@@ -599,19 +602,19 @@ export function getFichaValidationWarnings(ficha: Ficha): string[] {
   const checkUnit = (elem: string, un: string, tabla: string, idx: number) => {
     const normElem = normalize(elem);
     const normUn = normalize(un);
-    if (!normElem || !normUn) return;
+    if (!normElem) return;
 
     // Pisos, paredes y cielo raso deben ser m²
-    if (['piso', 'paredes', 'pared', 'cielo raso', 'cubierta', 'ceramica en piso', 'ceramica en pared', 'pintura en paredes'].some(k => normElem.includes(k))) {
+    if (['piso', 'paredes', 'pared', 'cielo raso', 'cubierta', 'ceramica', 'pintura', 'revestimiento', 'porcelanato', 'azulejo'].some(k => normElem.includes(k))) {
       if (normUn !== 'm²' && normUn !== 'm2') {
         warnings.push(`${tabla} Fila #${idx + 1} (${elem}): elemento de superficie/acabado registrado con unidad "${un}". La unidad estándar es m².`);
       }
     }
 
-    // Piezas fijas, puertas, interruptores, sanitarios deben ser 'u', 'pza' o 'jgo'
+    // Piezas discretas requieren unidad u.
     if (['puerta', 'inodoro', 'lavamanos', 'urinario', 'tomacorriente', 'interruptor', 'lampara', 'luminaria'].some(k => normElem.includes(k))) {
-      if (normUn === 'ml' || normUn === 'm') {
-        warnings.push(`${tabla} Fila #${idx + 1} (${elem}): elemento discreto registrado con unidad lineal "${un}". Se sugiere medir en unidades (u).`);
+      if (normUn !== 'u') {
+        warnings.push(`${tabla} Fila #${idx + 1} (${elem}): pieza discreta registrada con unidad "${un}". La unidad requerida es u.`);
       }
     }
 
@@ -647,6 +650,98 @@ export function getFichaValidationWarnings(ficha: Ficha): string[] {
   return warnings;
 }
 
+/**
+ * Errores bloqueantes para el guardado de una ficha nueva o modificada.
+ * Las advertencias históricas se mantienen separadas y no borran ni invalidan datos antiguos por sí solas.
+ */
+export function getFichaBlockingErrors(ficha: Ficha, previousFicha?: Ficha): string[] {
+  const errors: string[] = [];
+  const normalize = (v: string) => String(v || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+
+  (ficha.pat || []).forEach((p, idx) => {
+    if (p.elemento || p.patologia) {
+      const previous = previousFicha?.pat?.find((row) => row.id === p.id);
+      const changed = !previousFicha || !previous ||
+        previous.cantidad !== p.cantidad || previous.elemento !== p.elemento || previous.patologia !== p.patologia;
+      const qty = Number(String(p.cantidad || '').replace(',', '.'));
+      if (changed && (!Number.isFinite(qty) || qty <= 0)) {
+        errors.push(`Patología fila #${idx + 1}: la cantidad debe ser mayor que cero.`);
+      }
+    }
+  });
+
+  const cabinasSinPuertas = (ficha.cons || []).some((row) => {
+    const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
+    return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no tienen puertas?|no hay puertas?|carecen de puertas?)/.test(text);
+  });
+  const hasCabinDoorConflict = (candidate: Ficha) => {
+    const noDoors = (candidate.cons || []).some((row) => {
+      const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
+      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no tienen puertas?|no hay puertas?|carecen de puertas?)/.test(text);
+    });
+    if (!noDoors) return false;
+    return [...(candidate.cuan || []), ...(candidate.pat || [])].some((row: any) => {
+      const text = normalize(`${row.elemento || ''} ${row.actividad || ''} ${row.patologia || ''} ${row.intervencion || ''}`);
+      return text.includes('puerta') && text.includes('cabina') && /(mantenimiento|reparacion|reposicion|cambio)/.test(text);
+    });
+  };
+  if (cabinasSinPuertas && hasCabinDoorConflict(ficha) && (!previousFicha || !hasCabinDoorConflict(previousFicha))) {
+    errors.push('No puede registrarse mantenimiento/reparación de puertas de cabinas si el levantamiento indica que no existen puertas.');
+  }
+
+  const isEmptyObservation = (value: string) => {
+    const text = normalize(value).replace(/^observaciones generales:\s*/, '').trim();
+    return ['sin observaciones', 's/o', 'ninguna', 'sin novedad'].includes(text);
+  };
+  const hasPathologyNoObservationConflict = (candidate: Ficha) =>
+    (candidate.pat || []).length > 0 &&
+    [candidate.obs, candidate.diag].some((value) => isEmptyObservation(String(value || '')));
+  if (hasPathologyNoObservationConflict(ficha) && (!previousFicha || !hasPathologyNoObservationConflict(previousFicha))) {
+    errors.push('El ambiente tiene patologías; reemplace «Sin observaciones» por una descripción técnica.');
+  }
+
+  const checkUnit = (elemento: string, unidad: string, label: string, changed: boolean) => {
+    if (!changed) return;
+    const elem = normalize(elemento);
+    const unit = normalize(unidad).replace(/²/g, '2');
+    if (!elem) return;
+    const surfaces = ['piso', 'pared', 'cielo raso', 'cubierta', 'ceramica', 'pintura', 'revestimiento', 'porcelanato', 'azulejo'];
+    if (surfaces.some((term) => elem.includes(term)) && unit !== 'm2') {
+      errors.push(`${label} «${elemento}»: la unidad de superficie debe ser m².`);
+    }
+    const pieces = ['puerta', 'inodoro', 'lavamanos', 'urinario', 'tomacorriente', 'interruptor', 'lampara', 'luminaria'];
+    if (pieces.some((term) => elem.includes(term)) && unit !== 'u') {
+      errors.push(`${label} «${elemento}»: la unidad de pieza debe ser u.`);
+    }
+    const linear = ['zocalo', 'tuberia', 'baranda', 'manguera', 'canaleta', 'borde', 'pasamanos'];
+    if (unit === 'ml' && !linear.some((term) => elem.includes(term))) {
+      errors.push(`${label} «${elemento}»: ml solo se permite para elementos lineales del catálogo.`);
+    }
+  };
+
+  const changedRow = (rows: any[] | undefined, row: any) => {
+    if (!previousFicha) return true;
+    const previous = (rows || []).find((item) => item.id === row.id);
+    return !previous || previous.elemento !== row.elemento || previous.unidad !== row.unidad;
+  };
+  (ficha.cons || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Constructivos fila #${i + 1}`, changedRow(previousFicha?.cons, r)));
+  (ficha.equip || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Equipamiento fila #${i + 1}`, changedRow(previousFicha?.equip, r)));
+  (ficha.elec || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Eléctricas fila #${i + 1}`, changedRow(previousFicha?.elec, r)));
+  (ficha.hidro || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Hidrosanitarias fila #${i + 1}`, changedRow(previousFicha?.hidro, r)));
+  (ficha.pat || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Patologías fila #${i + 1}`, changedRow(previousFicha?.pat, r)));
+  (ficha.cuan || []).forEach((r, i) => checkUnit(r.elemento, r.unidad, `Cuantificación fila #${i + 1}`, changedRow(previousFicha?.cuan, r)));
+
+  (ficha.cons || []).forEach((r, i) => {
+    const previous = previousFicha?.cons?.find((row) => row.id === r.id);
+    const changed = !previousFicha || !previous || previous.dimension !== r.dimension;
+    if (changed && r.dimension) {
+      const result = isValidDimensionFormat(r.dimension);
+      if (!result.valid) errors.push(`Constructivos fila #${i + 1} (${r.elemento || 'Elemento'}): ${result.reason}`);
+    }
+  });
+  return [...new Set(errors)];
+}
+
 export interface ProjectVerificationItem {
   id: string;
   title: string;
@@ -671,50 +766,77 @@ export interface ProjectVerificationResult {
  */
 export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerificationResult {
   const items: ProjectVerificationItem[] = [];
+  const normalize = (value: string) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 
-  // 1. Total de la sección 8 igual a la suma de los ambientes
-  const totalAreaAmbientes = fichas.reduce((acc, f) => acc + calculateArea(f), 0);
-  let totalCuanSuperficie = 0;
-  let ambDiscrepantesCount = 0;
-
+  // 1. La sección 8 se consolida desde las cantidades registradas por ambiente.
+  // Se detectan problemas de trazabilidad en lugar de comparar indiscriminadamente todas las superficies.
+  const traceProblems: string[] = [];
   fichas.forEach((f) => {
-    const areaAmb = calculateArea(f);
-    const m2CuanAmb = (f.cuan || []).reduce((acc, item) => {
-      const u = (item.unidad || '').toLowerCase().trim();
-      if (u === 'm²' || u === 'm2') {
-        const q = parseFloat(String(item.cantidad || '0').replace(',', '.'));
-        return acc + (isNaN(q) ? 0 : q);
+    const links = new Set<string>();
+    (f.cuan || []).forEach((q, idx) => {
+      if (q.porVerificar) traceProblems.push(`${f.codigo || f.ambiente}: cuantificación ${q.elemento || idx + 1} marcada por verificar.`);
+      if (q.origenAcabado && !q.cantidadManual) {
+        const finishTotals = calculateFinishesTotals(f);
+        const expected = q.origenAcabado === 'pintura' ? finishTotals.pinturaTotal : finishTotals.ceramicaTotal;
+        const actual = Number(String(q.cantidad || '').replace(',', '.'));
+        if (!Number.isFinite(actual) || Math.abs(actual - expected) > 0.004) {
+          traceProblems.push(`${f.codigo || f.ambiente}: total de ${q.origenAcabado} en sección 8 no coincide con los elementos fuente (${expected.toFixed(2)} m²).`);
+        }
       }
-      return acc;
-    }, 0);
-
-    totalCuanSuperficie += m2CuanAmb;
-    // Si el ambiente tiene área definida pero no tiene cuantificaciones de superficie
-    if (areaAmb > 0 && Math.abs(areaAmb - m2CuanAmb) > 0.05 && (f.cuan || []).length > 0) {
-      ambDiscrepantesCount++;
-    }
+      if (q.origenPatologiaId) {
+        if (links.has(q.origenPatologiaId)) traceProblems.push(`${f.codigo || f.ambiente}: actividad duplicada enlazada a patología (${q.elemento || 'Elemento'}).`);
+        links.add(q.origenPatologiaId);
+        const source = (f.pat || []).find((p) => p.id === q.origenPatologiaId);
+        if (!source) traceProblems.push(`${f.codigo || f.ambiente}: la cuantificación «${q.elemento || idx + 1}» conserva un vínculo a una patología eliminada; por verificar.`);
+        if (source && !q.cantidadManual) {
+          const fromPath = Number(String(source.cantidad || '').replace(',', '.'));
+          const fromQuant = Number(String(q.cantidad || '').replace(',', '.'));
+          if (!Number.isFinite(fromPath) || !Number.isFinite(fromQuant) || Math.abs(fromPath - fromQuant) > 0.004) {
+            traceProblems.push(`${f.codigo || f.ambiente}: cantidad de sección 8 no coincide con patología enlazada (${q.elemento || idx + 1}).`);
+          }
+        }
+      }
+      if (q.origenConstructivoId && !q.cantidadManual) {
+        const source = (f.cons || []).find((row) => row.id === q.origenConstructivoId);
+        if (!source) traceProblems.push(`${f.codigo || f.ambiente}: la cuantificación «${q.elemento || idx + 1}» conserva un vínculo a un elemento eliminado; por verificar.`);
+        if (source) {
+          const sourceQty = Number(String(source.cantidad || '').replace(',', '.'));
+          const quantQty = Number(String(q.cantidad || '').replace(',', '.'));
+          if (!Number.isFinite(sourceQty) || !Number.isFinite(quantQty) || Math.abs(sourceQty - quantQty) > 0.004) {
+            traceProblems.push(`${f.codigo || f.ambiente}: sección 8 no coincide con el elemento fuente ${source.elemento || idx + 1}.`);
+          }
+        }
+      }
+    });
+    (f.cons || []).forEach((row) => {
+      if (row.porVerificar) traceProblems.push(`${f.codigo || f.ambiente}: elemento ${row.elemento || 'constructivo'} marcado por verificar.`);
+      const parsed = parseDimensions(row.dimension || '');
+      if (parsed && !row.cantidadManual) {
+        const amount = Number(String(row.cantidad || '').replace(',', '.'));
+        if (!Number.isFinite(amount) || Math.abs(amount - parsed.area) > 0.004) {
+          traceProblems.push(`${f.codigo || f.ambiente}: cantidad de «${row.elemento || 'elemento'}» no coincide con ${parsed.largo.toFixed(2)} × ${parsed.ancho.toFixed(2)} m.`);
+        }
+      }
+    });
   });
-
-  const diffArea = Math.abs(totalAreaAmbientes - totalCuanSuperficie);
-  const areaMismatch = fichas.length > 0 && totalAreaAmbientes > 0 && diffArea > 0.5 && ambDiscrepantesCount > 0;
-
   items.push({
     id: 'area-seccion8',
-    title: 'Total Sección 8 vs Suma de Ambientes',
-    status: areaMismatch ? 'warning' : 'ok',
-    count: areaMismatch ? ambDiscrepantesCount : 0,
-    detail: areaMismatch
-      ? `Superficie total de ambientes (${totalAreaAmbientes.toFixed(2)} m²) presenta diferencias con la cuantificación de acabados (${totalCuanSuperficie.toFixed(2)} m²) en ${ambDiscrepantesCount} ambiente(s).`
-      : `Superficie total de ambientes (${totalAreaAmbientes.toFixed(2)} m²) coherente con el relevamiento.`,
+    title: 'Trazabilidad de cuantificación y totales de Sección 8',
+    status: traceProblems.length > 0 ? 'warning' : 'ok',
+    count: traceProblems.length,
+    detail: traceProblems.length > 0
+      ? `${traceProblems.length} cantidad(es) requieren revisión: ${traceProblems.slice(0, 3).join(' ')}${traceProblems.length > 3 ? '…' : ''}`
+      : 'Las cantidades derivadas y las actividades enlazadas concuerdan con sus fuentes registradas.',
   });
 
-  // 2. Estado del encabezado igual al del diagnóstico en cada ambiente
+  // 2. Estado derivado de patologías frente a los valores históricos guardados.
   const statusDiscrepancies: string[] = [];
   fichas.forEach((f) => {
+    const derived = getWorstSeverityState(f.pat || []).estado;
     const estDim = (f.estadoDimensional || '').trim();
     const diagEst = (f.diagestado || '').trim();
-    if (estDim && diagEst && estDim !== diagEst) {
-      statusDiscrepancies.push(`${f.codigo || 'S/C'} (${estDim} ≠ ${diagEst})`);
+    if ((estDim && estDim !== derived) || (diagEst && diagEst !== derived) || (estDim && diagEst && estDim !== diagEst)) {
+      statusDiscrepancies.push(`${f.codigo || 'S/C'} (guardado: ${estDim || '—'} / ${diagEst || '—'}; derivado: ${derived})`);
     }
   });
 
@@ -724,15 +846,16 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
     status: statusDiscrepancies.length > 0 ? 'warning' : 'ok',
     count: statusDiscrepancies.length,
     detail: statusDiscrepancies.length > 0
-      ? `${statusDiscrepancies.length} ambiente(s) con estados diferentes: ${statusDiscrepancies.slice(0, 3).join(', ')}${statusDiscrepancies.length > 3 ? '...' : ''}.`
-      : 'Todos los ambientes tienen estados de encabezado y diagnóstico unificados.',
+      ? `${statusDiscrepancies.length} ambiente(s) requieren sincronización: ${statusDiscrepancies.slice(0, 3).join(', ')}${statusDiscrepancies.length > 3 ? '…' : ''}.`
+      : 'Todos los ambientes coinciden con el estado derivado de sus patologías.',
   });
 
   // 3. Fotos sin descripción
   let fotosSinDesc = 0;
   fichas.forEach((f) => {
     (f.fotos || []).forEach((foto) => {
-      if (!foto.desc || !foto.desc.trim()) {
+      const desc = normalize(foto.desc || '');
+      if (!desc || ['sin descripcion', 'pendiente', 'por verificar', 's/d'].includes(desc)) {
         fotosSinDesc++;
       }
     });
@@ -753,7 +876,8 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
   fichas.forEach((f) => {
     const sinCuan = !f.cuan || f.cuan.length === 0;
     const sinId = !f.codigo?.trim() || !f.ambiente?.trim();
-    if (sinCuan || sinId) {
+    const incompletoMarcado = Boolean(f.incompleto || f.porVerificar || (f.cuan || []).some((q) => q.porVerificar));
+    if (sinCuan || sinId || incompletoMarcado) {
       incompletos.push(f.codigo || f.ambiente || 'S/C');
     }
   });
@@ -764,7 +888,7 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
     status: incompletos.length > 0 ? 'warning' : 'ok',
     count: incompletos.length,
     detail: incompletos.length > 0
-      ? `${incompletos.length} ambiente(s) sin cuantificación preliminar o con datos faltantes (${incompletos.slice(0, 3).join(', ')}${incompletos.length > 3 ? '...' : ''}).`
+      ? `${incompletos.length} ambiente(s) sin cuantificación, identificados como incompletos o con cantidades por verificar (${incompletos.slice(0, 3).join(', ')}${incompletos.length > 3 ? '...' : ''}).`
       : 'Todos los ambientes guardados cuentan con cuantificación preliminar e identificación.',
   });
 

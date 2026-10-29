@@ -64,6 +64,8 @@ import {
   formatTimestamp,
   nextConsecutive,
   getProjectVerificationChecklist,
+  getFichaBlockingErrors,
+  getWorstSeverityState,
 } from './utils/helpers';
 
 /**
@@ -222,6 +224,7 @@ export default function App() {
   const [dupTargetId, setDupTargetId] = useState<string | null>(null);
   const [dupCodigo, setDupCodigo] = useState('');
   const [dupAmbiente, setDupAmbiente] = useState('');
+  const [dupConfirmDetails, setDupConfirmDetails] = useState(false);
   const [isPorVerificarPrint, setIsPorVerificarPrint] = useState(false);
 
   // Web Notifications & Session tracking
@@ -574,6 +577,20 @@ export default function App() {
       return;
     }
 
+    const previousFicha = fichas.find((f) => f.id === activeFicha.id);
+    const derivedState = getWorstSeverityState(activeFicha.pat || []).estado;
+    const fichaToSave: Ficha = {
+      ...activeFicha,
+      estadoDimensional: derivedState,
+      diagestado: derivedState,
+      updatedAt: new Date().toISOString(),
+    };
+    const blockingErrors = getFichaBlockingErrors(fichaToSave, previousFicha);
+    if (blockingErrors.length > 0) {
+      alert(`No se puede guardar hasta corregir estos errores:\n\n${blockingErrors.map((error) => `• ${error}`).join('\n')}`);
+      return;
+    }
+
     // PRIORIDAD 4: Control de duplicados - advertencia si dos ambientes del mismo bloque tienen las mismas dimensiones
     const currentBloque = (activeFicha.bloque || projectData.bloque || '').trim().toLowerCase();
     const currentLargo = parseFloat(String(activeFicha.largo || '0').replace(',', '.'));
@@ -613,7 +630,8 @@ export default function App() {
         return;
       }
     }
-    await StorageService.saveFicha(activeFicha);
+    await StorageService.saveFicha(fichaToSave);
+    setActiveFicha(fichaToSave);
     const updated = await StorageService.getFichas();
     setFichas(updated);
     setHasUnsavedChanges(false);
@@ -693,6 +711,7 @@ export default function App() {
     }
     setDupCodigo(nextConsecutive(target.codigo));
     setDupAmbiente(nextConsecutive(target.ambiente));
+    setDupConfirmDetails(false);
     setDupTargetId(target.id);
   };
 
@@ -703,8 +722,12 @@ export default function App() {
     const cod = String(dupCodigo || '').trim();
     const amb = String(dupAmbiente || '').trim();
 
-    if (!cod && !amb) {
-      alert('Ingrese al menos el Código o el Ambiente para identificar la nueva ficha.');
+    if (!cod || !amb) {
+      alert('Ingrese el nuevo Código y el nombre del Ambiente antes de confirmar la duplicación.');
+      return;
+    }
+    if (!dupConfirmDetails) {
+      alert('Confirme expresamente el nombre y las dimensiones mostradas antes de crear la copia.');
       return;
     }
 
@@ -752,6 +775,16 @@ export default function App() {
     duplicated.fotos = [];
     duplicated.codigo = cod;
     duplicated.ambiente = amb;
+    const duplicatedState = getWorstSeverityState(duplicated.pat || []).estado;
+    duplicated.estadoDimensional = duplicatedState;
+    duplicated.diagestado = duplicatedState;
+    duplicated.updatedAt = new Date().toISOString();
+
+    const duplicateBlockingErrors = getFichaBlockingErrors(duplicated, target);
+    if (duplicateBlockingErrors.length > 0) {
+      alert(`No se puede crear la copia hasta corregir los nuevos errores:\n\n${duplicateBlockingErrors.map((error) => `• ${error}`).join('\n')}`);
+      return;
+    }
 
     loadFicha(duplicated);
     setDupTargetId(null);
@@ -848,7 +881,7 @@ export default function App() {
     const c: Record<string, number> = { Bueno: 0, Regular: 0, Malo: 0, Crítico: 0 };
     fichas.forEach((f) => {
       area += calculateArea(f);
-      const st = f.estadoDimensional || f.diagestado || 'Regular';
+      const st = getWorstSeverityState(f.pat || []).estado;
       if (c[st] !== undefined) c[st]++;
     });
     return { area, c };
@@ -893,7 +926,7 @@ export default function App() {
               <div className="flex min-w-0 flex-1 items-center space-x-2 sm:space-x-3.5">
                 <div className="gasv-mobile-icon-lockup flex items-center shrink-0">
                   <img
-                    src={`${(import.meta.env?.BASE_URL || '/').replace(/\/$/, '')}/gasv-logo.png`}
+                    src={GSARITAMA_HEADER_LOGO}
                     alt="GSARITAMA ARQ."
                     className="h-8 sm:h-11 w-auto max-w-[92px] sm:max-w-[190px] object-contain block select-none"
                   />
@@ -996,7 +1029,7 @@ export default function App() {
             <div className="flex items-center space-x-3.5">
               <div className="flex items-center shrink-0">
                 <img
-                  src={`${(import.meta.env?.BASE_URL || '/').replace(/\/$/, '')}/gasv-logo.png`}
+                  src={GSARITAMA_HEADER_LOGO}
                   alt="GSARITAMA ARQ."
                   className="h-11 w-auto max-w-[190px] object-contain block select-none"
                 />
@@ -1433,11 +1466,11 @@ export default function App() {
                     <div className="flex justify-between items-center text-slate-500 ml-5 text-[11px]">
                       <span>{item.bloque || projectData.bloque} · {item.nivel || 'N/A'}</span>
                       <span className={`font-semibold ${
-                        item.diagestado === 'Crítico' ? 'text-red-600' :
-                        item.diagestado === 'Malo' ? 'text-orange-600' :
-                        item.diagestado === 'Regular' ? 'text-yellow-600' : 'text-green-600'
+                        getWorstSeverityState(item.pat || []).estado === 'Crítico' ? 'text-red-600' :
+                        getWorstSeverityState(item.pat || []).estado === 'Malo' ? 'text-orange-600' :
+                        getWorstSeverityState(item.pat || []).estado === 'Regular' ? 'text-yellow-600' : 'text-green-600'
                       }`}>
-                        {item.diagestado || 'Regular'}
+                        {getWorstSeverityState(item.pat || []).estado}
                       </span>
                     </div>
                   </div>
@@ -1486,7 +1519,7 @@ export default function App() {
                       <td className="p-1.5 border border-gray-300">{item.bloque || projectData.bloque}</td>
                       <td className="p-1.5 border border-gray-300">{item.nivel}</td>
                       <td className="p-1.5 border border-gray-300 text-right">{calculateArea(item).toFixed(2)}</td>
-                      <td className="p-1.5 border border-gray-300">{item.estadoDimensional || item.diagestado}</td>
+                      <td className="p-1.5 border border-gray-300">{getWorstSeverityState(item.pat || []).estado}</td>
                     </tr>
                   ))}
                   {fichas.length === 0 && (
@@ -1781,6 +1814,16 @@ export default function App() {
                     </div>
                   )}
 
+                  <label className="flex items-start gap-2 p-2 rounded border border-amber-200 bg-amber-50 text-xs text-amber-900">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={dupConfirmDetails}
+                      onChange={(e) => setDupConfirmDetails(e.target.checked)}
+                    />
+                    <span>Confirmo el nombre y las dimensiones mostradas del ambiente de origen para crear esta nueva ficha.</span>
+                  </label>
+
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">Nuevo Código</label>
                     <input
@@ -1818,7 +1861,8 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleConfirmDuplicate}
-                    className="px-3 py-1.5 bg-[#16794b] text-white rounded text-sm font-semibold hover:bg-green-600 cursor-pointer"
+                    disabled={!dupConfirmDetails || !dupCodigo.trim() || !dupAmbiente.trim()}
+                    className={`px-3 py-1.5 bg-[#16794b] text-white rounded text-sm font-semibold hover:bg-green-600 cursor-pointer ${!dupConfirmDetails || !dupCodigo.trim() || !dupAmbiente.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Confirmar y crear
                   </button>

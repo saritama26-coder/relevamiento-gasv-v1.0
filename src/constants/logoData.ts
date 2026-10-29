@@ -1,8 +1,7 @@
-// Logotipo horizontal negro sobre fondo blanco para informes, manuales e impresión.
-// No utilizar gasv-logo.png aquí: esa variante es blanca y queda invisible sobre blanco.
-const baseUrl = (import.meta.env?.BASE_URL || '/').replace(/\/+$/, '');
-export const GSARITAMA_LOGO_PNG = `${baseUrl}/gsaritama_official.svg`;
+import officialLogo from '../assets/gsaritama_official.svg?inline';
+import headerLogo from '../../gasv-logo.png?inline';
 
-// Marca exacta utilizada en la cabecera principal de GASV (versión blanca).
-// En reportes y PDF debe colocarse sobre una placa azul para conservar su aspecto.
-export const GSARITAMA_HEADER_LOGO = `${baseUrl}/gasv-logo.png`;
+// Los logotipos se integran como data URI para conservar su apariencia
+// tanto en la aplicación publicada como en el HTML autónomo.
+export const GSARITAMA_LOGO_PNG = officialLogo;
+export const GSARITAMA_HEADER_LOGO = headerLogo;
