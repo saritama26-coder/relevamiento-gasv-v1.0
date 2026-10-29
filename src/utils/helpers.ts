@@ -689,9 +689,13 @@ export function getFichaBlockingErrors(ficha: Ficha, previousFicha?: Ficha): str
     errors.push('No puede registrarse mantenimiento/reparación de puertas de cabinas si el levantamiento indica que no existen puertas.');
   }
 
+  const isEmptyObservation = (value: string) => {
+    const text = normalize(value).replace(/^observaciones generales:\s*/, '').trim();
+    return ['sin observaciones', 's/o', 'ninguna', 'sin novedad'].includes(text);
+  };
   const hasPathologyNoObservationConflict = (candidate: Ficha) =>
     (candidate.pat || []).length > 0 &&
-    ['sin observaciones', 's/o', 'ninguna', 'sin novedad'].includes(normalize(candidate.obs));
+    [candidate.obs, candidate.diag].some((value) => isEmptyObservation(String(value || '')));
   if (hasPathologyNoObservationConflict(ficha) && (!previousFicha || !hasPathologyNoObservationConflict(previousFicha))) {
     errors.push('El ambiente tiene patologías; reemplace «Sin observaciones» por una descripción técnica.');
   }
