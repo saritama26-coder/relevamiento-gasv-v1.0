@@ -49,9 +49,9 @@ function CatalogInput({ value, options, onChange, className, closed = false }: C
   const lastValidValueRef = useRef(value ?? '');
 
   useEffect(() => {
-    if (options.some((option) => option.toLocaleLowerCase() === String(value ?? '').toLocaleLowerCase())) {
-      lastValidValueRef.current = String(value ?? '');
-    }
+    const normalizeOption = (input: string) => String(input || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+    const matchingOption = options.find((option) => normalizeOption(option) === normalizeOption(String(value ?? '')));
+    if (matchingOption) lastValidValueRef.current = matchingOption;
   }, [value, options]);
 
   const positionMenu = () => {
@@ -123,8 +123,10 @@ function CatalogInput({ value, options, onChange, className, closed = false }: C
           value={value ?? ''}
           onFocus={() => openMenu(true)}
           onBlur={() => {
-            if (closed && !options.some((option) => option.toLocaleLowerCase() === String(value ?? '').trim().toLocaleLowerCase())) {
-              onChange(lastValidValueRef.current);
+            if (closed) {
+              const normalizeOption = (input: string) => String(input || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase();
+              const matchingOption = options.find((option) => normalizeOption(option) === normalizeOption(String(value ?? '')));
+              onChange(matchingOption || lastValidValueRef.current);
             }
             setFilter('');
             setOpen(false);
@@ -202,7 +204,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
 
   const getCustomTokens = (row: any) => {
     return columns
-      .filter((col) => col.dataListId && isCustomValue(listas, col.dataListId, row[col.key]))
+      .filter((col) => col.dataListId && !col.catalogClosed && isCustomValue(listas, col.dataListId, row[col.key]))
       .map((col) => ({
         listId: col.dataListId!,
         valor: String(row[col.key]).trim(),
