@@ -146,6 +146,42 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
           </div>
         </div>
 
+        {/* Interruptor rápido de auto-respaldo en Google Drive */}
+        <div className="bg-sky-50/80 border-b border-sky-100 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <Cloud size={16} className={autoBackupEnabled ? "text-sky-700 shrink-0" : "text-slate-400 shrink-0"} />
+            <div className="min-w-0">
+              <span className="font-bold text-slate-800">Auto-respaldo Google Drive:</span>{' '}
+              <span className={autoBackupEnabled ? "text-emerald-700 font-semibold" : "text-amber-700 font-semibold"}>
+                {autoBackupEnabled ? 'Activado' : 'Pausado (cuenta vinculada)'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+              {autoBackupEnabled ? 'Sincronización continua' : 'Sin revocar permisos'}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoBackupEnabled}
+              onClick={() => onToggleAutoBackup?.(!autoBackupEnabled)}
+              title={autoBackupEnabled ? 'Pausar auto-respaldo en Google Drive' : 'Activar auto-respaldo en Google Drive'}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                autoBackupEnabled ? 'bg-sky-600' : 'bg-slate-300'
+              }`}
+            >
+              <span className="sr-only">Alternar auto-respaldo en Google Drive</span>
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  autoBackupEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
         {/* Tab selection */}
         <div className="flex border-b border-slate-200 bg-white text-xs sm:text-sm font-semibold">
           <button
@@ -321,15 +357,24 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
 
                   {/* Interruptor toggle switch */}
                   <div className="shrink-0 pt-0.5">
-                    <label className="relative inline-flex items-center cursor-pointer" title={autoBackupEnabled ? 'Hacer clic para pausar auto-respaldo' : 'Hacer clic para reactivar auto-respaldo'}>
-                      <input
-                        type="checkbox"
-                        checked={autoBackupEnabled}
-                        onChange={(e) => onToggleAutoBackup?.(e.target.checked)}
-                        className="sr-only peer"
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={autoBackupEnabled}
+                      onClick={() => onToggleAutoBackup?.(!autoBackupEnabled)}
+                      title={autoBackupEnabled ? 'Hacer clic para pausar auto-respaldo' : 'Hacer clic para reactivar auto-respaldo'}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                        autoBackupEnabled ? 'bg-sky-600' : 'bg-slate-300'
+                      }`}
+                    >
+                      <span className="sr-only">Alternar auto-respaldo en Google Drive</span>
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                          autoBackupEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600 shadow-inner"></div>
-                    </label>
+                    </button>
                   </div>
                 </div>
 

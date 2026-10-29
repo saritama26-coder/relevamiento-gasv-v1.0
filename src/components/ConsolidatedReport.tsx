@@ -1,5 +1,5 @@
-import { useMemo, useEffect, useCallback } from 'react';
-import { Printer, X } from 'lucide-react';
+import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
+import { Printer, X, FileText, Layers, Check } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
 import { calculateArea, sanitizeFilename, formatTimestamp } from '../utils/helpers';
 import { GSARITAMA_HEADER_LOGO } from '../constants/logoData';
@@ -8,23 +8,87 @@ interface ConsolidatedReportProps {
   fichas: Ficha[];
   projectData: ProjectData;
   onClose: () => void;
+  initialViewMode?: 'all' | 'summary';
 }
 
-export function ConsolidatedReport({ fichas, projectData, onClose }: ConsolidatedReportProps) {
-  // Print setup hook
-  const getFilename = useCallback(
-    () => `Relevamiento_${projectData.proyecto || 'Proyecto'}_TODO_PROYECTO`,
+export function ConsolidatedReport({
+  fichas,
+  projectData,
+  onClose,
+  initialViewMode = 'all',
+}: ConsolidatedReportProps) {
+  // Estado para alternar entre ver todo o únicamente el resumen consolidado
+  const [viewFilter, setViewFilter] = useState<'all' | 'summary'>(initialViewMode);
+  // Estado transitorio durante la exportación a PDF del resumen independiente
+  const [isExportingSummary, setIsExportingSummary] = useState(false);
+
+  const printScopeRef = useRef<'all' | 'summary'>(initialViewMode);
+  const isTemporaryPrintRef = useRef(false);
+
+  // Nombres normalizados de archivo para la exportación a PDF
+  const getSummaryFilename = useCallback(
+    () => `Relevamiento_${(projectData.proyecto || 'Proyecto').trim()}_Resumen_Consolidado`,
     [projectData.proyecto]
   );
 
+  const getFullFilename = useCallback(
+    () => `Relevamiento_${(projectData.proyecto || 'Proyecto').trim()}_TODO_PROYECTO`,
+    [projectData.proyecto]
+  );
+
+  // Configuración de impresión idéntica a la del resto de la aplicación (título de documento y reemplazo de controles)
   useEffect(() => {
     let originalTitle = '';
+
     const beforePrint = () => {
       originalTitle = document.title;
-      document.title = `${sanitizeFilename(getFilename())}_${formatTimestamp()}`;
+      const targetFilename =
+        printScopeRef.current === 'summary' ? getSummaryFilename() : getFullFilename();
+      document.title = `${sanitizeFilename(targetFilename)}_${formatTimestamp()}`;
+
+      // Reemplazo de controles (input, select, textarea) por elementos de texto estáticos para impresión limpia
+      document.querySelectorAll('input, select, textarea').forEach((el) => {
+        if (el instanceof HTMLInputElement && ['file', 'radio', 'checkbox', 'hidden'].includes(el.type)) return;
+        const span = document.createElement('span');
+        span.className = 'gsv-print-value';
+
+        let textVal = '';
+        if (el instanceof HTMLSelectElement) {
+          textVal = el.selectedOptions[0]?.textContent ?? el.value ?? '';
+        } else if (el instanceof HTMLTextAreaElement) {
+          textVal = el.value || '';
+        } else if (el instanceof HTMLInputElement) {
+          if (el.type === 'number' && String(el.value).trim() !== '') {
+            const num = parseFloat(String(el.value).replace(',', '.'));
+            textVal = isNaN(num) ? el.value : num.toFixed(2);
+          } else if (el.type === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(el.value)) {
+            const [y, m, d] = el.value.split('-');
+            textVal = `${d}/${m}/${y}`;
+          } else {
+            textVal = el.value || '';
+          }
+        }
+
+        span.textContent = textVal;
+        (el as any).dataset.gsvDisplay = (el as HTMLElement).style.display;
+        (el as HTMLElement).style.display = 'none';
+        el.insertAdjacentElement('afterend', span);
+      });
     };
+
     const afterPrint = () => {
+      document.querySelectorAll('.gsv-print-value').forEach((s) => s.remove());
+      document.querySelectorAll('[data-gsv-display]').forEach((el) => {
+        (el as HTMLElement).style.display = (el as any).dataset.gsvDisplay || '';
+        delete (el as any).dataset.gsvDisplay;
+      });
       if (originalTitle) document.title = originalTitle;
+
+      if (isTemporaryPrintRef.current) {
+        isTemporaryPrintRef.current = false;
+        setIsExportingSummary(false);
+        printScopeRef.current = viewFilter;
+      }
     };
 
     window.addEventListener('beforeprint', beforePrint);
@@ -33,7 +97,35 @@ export function ConsolidatedReport({ fichas, projectData, onClose }: Consolidate
       window.removeEventListener('beforeprint', beforePrint);
       window.removeEventListener('afterprint', afterPrint);
     };
-  }, [getFilename]);
+  }, [getSummaryFilename, getFullFilename, viewFilter]);
+
+  /**
+   * Exporta el resumen consolidado como un archivo PDF independiente,
+   * utilizando la misma lógica de impresión que el resto de la aplicación.
+   */
+  const handleExportSummaryPDF = useCallback(() => {
+    printScopeRef.current = 'summary';
+    isTemporaryPrintRef.current = true;
+    setIsExportingSummary(true);
+
+    // Pequeño retardo para asegurar que el DOM oculte las fichas detalladas antes de abrir el diálogo de impresión
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  }, []);
+
+  /**
+   * Exporta el reporte completo (resumen consolidado + desglose detallado de todos los ambientes) como PDF.
+   */
+  const handleExportFullReportPDF = useCallback(() => {
+    printScopeRef.current = 'all';
+    isTemporaryPrintRef.current = false;
+    setIsExportingSummary(false);
+
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  }, []);
 
   const sortedFichas = useMemo(() => {
     return [...fichas].sort((a, b) =>
@@ -84,43 +176,108 @@ export function ConsolidatedReport({ fichas, projectData, onClose }: Consolidate
     return Object.values(map).sort((a, b) => a.elemento.localeCompare(b.elemento));
   }, [sortedFichas]);
 
+  const isSummaryOnlyMode = isExportingSummary || viewFilter === 'summary';
+
   return (
     <div className="min-h-screen bg-white">
       {/* Sticky Top Bar for actions */}
-      <div className="bg-slate-800 text-white p-3 sm:p-4 print:hidden flex flex-wrap justify-between items-center sticky top-0 z-50 shadow-md gap-2">
+      <div className="bg-slate-800 text-white p-3 sm:p-4 print:hidden flex flex-wrap justify-between items-center sticky top-0 z-50 shadow-md gap-3">
         <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-          <div className="report-logo-plate shrink-0 w-[190px] h-[45px] flex items-center justify-center rounded-sm overflow-visible">
+          <div className="report-logo-plate shrink-0 w-[160px] sm:w-[190px] h-[38px] sm:h-[45px] flex items-center justify-center rounded-sm overflow-visible">
             <img
               src={GSARITAMA_HEADER_LOGO}
               alt="GSARITAMA ARQ."
               className="h-full w-full shrink-0 object-contain object-center block"
             />
           </div>
-          <h2 className="text-base sm:text-lg font-bold truncate">
-            Reporte Consolidado ({fichas.length} amb.)
-          </h2>
+          <div>
+            <h2 className="text-sm sm:text-lg font-bold truncate">
+              Reporte Consolidado ({fichas.length} amb.)
+            </h2>
+            <p className="text-[11px] text-slate-300 hidden md:block">
+              {isSummaryOnlyMode
+                ? 'Visualizando únicamente resumen ejecutivo y cuantificación'
+                : 'Visualizando resumen y fichas de ambientes'}
+            </p>
+          </div>
         </div>
-        <div className="flex space-x-2">
+
+        {/* Selector de modo de visualización en pantalla */}
+        <div className="flex items-center bg-slate-900/90 p-0.5 rounded-lg border border-slate-700 text-xs">
           <button
             type="button"
-            onClick={() => window.print()}
-            className="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold text-xs sm:text-sm transition-colors"
+            onClick={() => {
+              setViewFilter('all');
+              printScopeRef.current = 'all';
+            }}
+            className={`px-2.5 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+              viewFilter === 'all'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-300 hover:text-white'
+            }`}
+            title="Ver reporte con todos los ambientes y fotos"
           >
-            <Printer size={16} className="mr-1.5" /> PDF
+            <Layers size={13} className="shrink-0" />
+            <span>Todo ({fichas.length})</span>
           </button>
           <button
             type="button"
-            onClick={onClose}
-            className="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-600 hover:bg-slate-500 rounded font-semibold text-xs sm:text-sm transition-colors"
+            onClick={() => {
+              setViewFilter('summary');
+              printScopeRef.current = 'summary';
+            }}
+            className={`px-2.5 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+              viewFilter === 'summary'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-300 hover:text-white'
+            }`}
+            title="Ver únicamente la carátula y el resumen consolidado"
           >
-            <X size={16} className="mr-1.5" /> Cerrar
+            <FileText size={13} className="shrink-0" />
+            <span>Solo Resumen</span>
+          </button>
+        </div>
+
+        {/* Botones de exportación a PDF */}
+        <div className="flex items-center space-x-2 shrink-0">
+          {/* Botón principal: Exportar resumen consolidado como PDF independiente */}
+          <button
+            type="button"
+            onClick={handleExportSummaryPDF}
+            className="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-semibold text-xs sm:text-sm transition-colors shadow-xs cursor-pointer"
+            title="Exportar únicamente el resumen consolidado en un archivo PDF independiente"
+          >
+            <FileText size={16} className="mr-1.5 shrink-0" />
+            <span>PDF Resumen</span>
+          </button>
+
+          {/* Botón secundario: Exportar todo el proyecto con desglose en PDF */}
+          <button
+            type="button"
+            onClick={handleExportFullReportPDF}
+            className="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold text-xs sm:text-sm transition-colors shadow-xs cursor-pointer"
+            title="Exportar el informe completo con el desglose de todos los ambientes ({fichas.length})"
+          >
+            <Printer size={16} className="mr-1.5 shrink-0" />
+            <span className="hidden sm:inline">PDF Completo</span>
+            <span className="sm:hidden">Todo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center px-2.5 py-1.5 sm:px-3 sm:py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
+            title="Cerrar reporte y volver a la app"
+          >
+            <X size={16} className="mr-1 shrink-0" />
+            <span>Cerrar</span>
           </button>
         </div>
       </div>
 
       {/* Main Report Body */}
       <div className="p-4 sm:p-8 max-w-5xl mx-auto text-slate-800">
-        <div className="print-page-break">
+        <div className={isSummaryOnlyMode ? 'mb-8' : 'print-page-break'}>
           {/* Header */}
           <div className="flex items-end justify-between border-b-2 border-slate-800 pb-3 mb-6">
             <div className="flex items-center space-x-3">
@@ -149,7 +306,11 @@ export function ConsolidatedReport({ fichas, projectData, onClose }: Consolidate
           <h1 className="text-3xl font-bold text-[#17365d] border-b-2 border-slate-200 pb-2 mb-6 uppercase">
             Relevamiento Arquitectónico
             <br />
-            <span className="text-xl text-slate-500 normal-case">Informe Consolidado del Proyecto</span>
+            <span className="text-xl text-slate-500 normal-case">
+              {isSummaryOnlyMode
+                ? 'Resumen Consolidado Ejecutivo del Proyecto'
+                : 'Informe Consolidado del Proyecto'}
+            </span>
           </h1>
 
           {/* Project Details */}
@@ -249,16 +410,28 @@ export function ConsolidatedReport({ fichas, projectData, onClose }: Consolidate
               No existen cantidades registradas en la sección 8 para consolidar.
             </div>
           )}
+
+          {/* Cierre institucional del resumen consolidado */}
+          <div className="mt-8 pt-4 border-t-2 border-slate-200 flex flex-wrap justify-between items-center text-xs text-slate-600 gap-2">
+            <div>
+              <span className="font-bold text-slate-800">Profesional a cargo:</span>{' '}
+              <span>{projectData.profesional || 'Arq. Gabriel Saritama Veira'}</span>
+            </div>
+            <div className="font-mono text-[11px] text-slate-500">
+              Documento consolidado • Relevamiento Arquitectónico GASV
+            </div>
+          </div>
         </div>
 
         {/* Detailed Breakdown for each Environment */}
-        {sortedFichas.map((f, idx) => {
-          const area = calculateArea(f);
-          return (
-            <div
-              key={f.id}
-              className="mt-12 pt-8 border-t-4 border-slate-800 print:mt-8 print:pt-4 print:break-before-page"
-            >
+        <div className={isSummaryOnlyMode ? 'hidden print:hidden' : ''}>
+          {sortedFichas.map((f, idx) => {
+            const area = calculateArea(f);
+            return (
+              <div
+                key={f.id}
+                className="mt-12 pt-8 border-t-4 border-slate-800 print:mt-8 print:pt-4 print:break-before-page"
+              >
               <h1 className="text-2xl font-bold text-[#17365d] mb-1 uppercase">Ambiente {idx + 1}</h1>
               <h2 className="text-lg font-semibold text-slate-600 mb-4">
                 {f.codigo || 'S/C'} · {f.ambiente || 'Sin nombre'}
@@ -427,6 +600,7 @@ export function ConsolidatedReport({ fichas, projectData, onClose }: Consolidate
             </div>
           );
         })}
+        </div>
 
         {fichas.length === 0 && (
           <p className="text-center text-slate-500 italic mt-10">
