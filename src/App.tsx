@@ -920,7 +920,7 @@ export default function App() {
               <div className="flex min-w-0 flex-1 items-center space-x-2 sm:space-x-3.5">
                 <div className="gasv-mobile-icon-lockup flex items-center shrink-0">
                   <img
-                    src={`${(import.meta.env?.BASE_URL || '/').replace(/\/$/, '')}/gasv-logo.png`}
+                    src={GSARITAMA_HEADER_LOGO}
                     alt="GSARITAMA ARQ."
                     className="h-8 sm:h-11 w-auto max-w-[92px] sm:max-w-[190px] object-contain block select-none"
                   />
