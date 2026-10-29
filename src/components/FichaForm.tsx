@@ -1045,12 +1045,16 @@ export function FichaForm({
             </div>
             <div>
               <label className="text-xs font-bold text-gray-500">6. Unidad</label>
-              <input
+              <select
                 className="w-full p-2 border rounded"
-                list="list-unidades"
                 value={asistente.unidad}
                 onChange={(e) => setAsistente({ ...asistente, unidad: e.target.value })}
-              />
+              >
+                <option value="">Seleccione unidad...</option>
+                {(listas['list-unidades'] || []).map((unidad) => (
+                  <option key={unidad} value={unidad}>{unidad}</option>
+                ))}
+              </select>
             </div>
             <div className="sm:col-span-2 md:col-span-2 flex items-end">
               <button
