@@ -1866,7 +1866,7 @@ export default function App() {
           );
         })()}
 
-                {/* Manual Modal */}
+        {/* Manual Modal */}
         {showManual && <ManualModal onClose={() => setShowManual(false)} />}
 
         {/* Device Sync & Association Modal (Mobile & PC) */}
