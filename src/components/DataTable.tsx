@@ -10,6 +10,7 @@ export interface ColumnDef {
   width?: string;
   options?: string[];
   dataListId?: string;
+  catalogClosed?: boolean;
 }
 
 interface DataTableProps {
@@ -30,6 +31,7 @@ interface CatalogInputProps {
   options: string[];
   onChange: (value: string) => void;
   className: string;
+  closed?: boolean;
 }
 
 /**
@@ -37,13 +39,20 @@ interface CatalogInputProps {
  * Unlike the browser's native datalist, this opens the full catalog on demand
  * and still allows custom values to be typed.
  */
-function CatalogInput({ value, options, onChange, className }: CatalogInputProps) {
+function CatalogInput({ value, options, onChange, className, closed = false }: CatalogInputProps) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const lastValidValueRef = useRef(value ?? '');
+
+  useEffect(() => {
+    if (options.some((option) => option.toLocaleLowerCase() === String(value ?? '').toLocaleLowerCase())) {
+      lastValidValueRef.current = String(value ?? '');
+    }
+  }, [value, options]);
 
   const positionMenu = () => {
     const rect = inputRef.current?.getBoundingClientRect();
@@ -113,6 +122,13 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
           className={className + ' pr-7'}
           value={value ?? ''}
           onFocus={() => openMenu(true)}
+          onBlur={() => {
+            if (closed && !options.some((option) => option.toLocaleLowerCase() === String(value ?? '').trim().toLocaleLowerCase())) {
+              onChange(lastValidValueRef.current);
+            }
+            setFilter('');
+            setOpen(false);
+          }}
           onChange={(event) => {
             const nextValue = event.target.value;
             onChange(nextValue);
@@ -230,13 +246,18 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
 
     // Si se modifica 'dimension' en elementos con unidad 'm²', calcular largo * ancho automáticamente
     if (key === 'dimension' && (updatedRow.unidad === 'm²' || updatedRow.unidad === 'm2' || !updatedRow.unidad)) {
-      const s = String(value || '').replace(/\s*(m|ml|mts)\b/gi, '').trim();
-      const match = s.match(/^([0-9]+(?:[.,][0-9]+)?)\s*([xX*×])\s*([0-9]+(?:[.,][0-9]+)?)$/);
+      const s = String(value || '').trim();
+      const match = s.match(/^([0-9]+(?:\.[0-9]+)?)\s*([xX*×])\s*([0-9]+(?:\.[0-9]+)?)\s*m?$/);
       if (match) {
-        const l = parseFloat(match[1].replace(',', '.'));
-        const a = parseFloat(match[3].replace(',', '.'));
-        if (!isNaN(l) && !isNaN(a) && l > 0 && a > 0) {
-          updatedRow.cantidad = (l * a).toFixed(2);
+        const l = parseFloat(match[1]);
+        const a = parseFloat(match[3]);
+        if (Number.isFinite(l) && Number.isFinite(a) && l > 0 && a > 0) {
+          const derived = (l * a).toFixed(2);
+          updatedRow.cantidad = derived;
+          updatedRow.cantidadDerivada = derived;
+          updatedRow.cantidadCalculada = true;
+          updatedRow.cantidadManual = false;
+          updatedRow.motivoCantidadManual = '';
           if (!updatedRow.unidad) updatedRow.unidad = 'm²';
         }
       }
@@ -244,6 +265,41 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
 
     copy[idx] = updatedRow;
     onChange(copy);
+  };
+
+  const handleQuantityCommit = (idx: number, rawValue: any) => {
+    const current = data[idx];
+    if (!current) return;
+    const parsed = parseFloat(String(rawValue ?? '').replace(',', '.'));
+    if (!Number.isFinite(parsed)) return;
+    const formatted = parsed.toFixed(2);
+
+    if (current.cantidadCalculada && !current.cantidadManual && current.cantidadDerivada) {
+      const derived = parseFloat(String(current.cantidadDerivada).replace(',', '.'));
+      if (Number.isFinite(derived) && Math.abs(parsed - derived) > 0.004) {
+        const reason = window.prompt(
+          `Este valor fue calculado desde las dimensiones (\${current.dimension || 'dimensiones registradas'}). Indique un motivo breve para la modificación manual:`,
+          ''
+        );
+        const copy = [...data];
+        const row = { ...current };
+        if (!reason || !reason.trim()) {
+          row.cantidad = current.cantidadDerivada;
+          row.cantidadCalculada = true;
+          row.cantidadManual = false;
+          row.motivoCantidadManual = '';
+        } else {
+          row.cantidad = formatted;
+          row.cantidadCalculada = false;
+          row.cantidadManual = true;
+          row.motivoCantidadManual = reason.trim();
+        }
+        copy[idx] = row;
+        onChange(copy);
+        return;
+      }
+    }
+    handleUpdate(idx, 'cantidad', formatted);
   };
 
   const handleDelete = (idx: number) => {
@@ -343,7 +399,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                       </label>
                       {col.type === 'select' ? (
                         <select
-                          className="w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
+                          className={`w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`} title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
                           value={val}
                           onChange={(e) => handleUpdate(idx, col.key, e.target.value)}
                         >
@@ -372,7 +428,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                             if (isQty) {
                               const parsed = parseFloat(String(val).replace(',', '.'));
                               if (!isNaN(parsed)) {
-                                handleUpdate(idx, col.key, parsed.toFixed(2));
+                                handleQuantityCommit(idx, parsed.toFixed(2));
                               }
                             }
                             setActiveCell(null);
@@ -439,7 +495,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                       <td key={col.key} className="p-1 border border-gray-300">
                         {col.type === 'select' ? (
                           <select
-                            className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
+                            className={`w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px] ${isQty && row.cantidadManual ? 'ring-1 ring-amber-400' : ''}`} title={isQty && row.cantidadManual ? `Modificación manual: ${row.motivoCantidadManual || 'sin motivo'}` : isQty && row.cantidadCalculada ? 'Cantidad calculada desde dimensiones' : undefined}
                             value={val}
                             onChange={(e) => handleUpdate(idx, col.key, e.target.value)}
                           >
@@ -455,6 +511,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                             value={String(val)}
                             options={listas[col.dataListId] || []}
                             onChange={(nextValue) => handleUpdate(idx, col.key, nextValue)}
+                            closed={col.catalogClosed}
                             className="w-full min-w-0 p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
                           />
                         ) : (
@@ -468,7 +525,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                               if (isQty) {
                                 const parsed = parseFloat(String(val).replace(',', '.'));
                                 if (!isNaN(parsed)) {
-                                  handleUpdate(idx, col.key, parsed.toFixed(2));
+                                  handleQuantityCommit(idx, parsed.toFixed(2));
                                 }
                               }
                               setActiveCell(null);
