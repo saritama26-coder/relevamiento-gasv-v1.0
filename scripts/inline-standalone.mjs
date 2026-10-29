@@ -13,14 +13,18 @@ function localAssetPath(rawUrl) {
   return resolved.startsWith(distDir + path.sep) ? resolved : null;
 }
 
-const scriptTags = [...html.matchAll(/<script\b([^>]*?)\bsrc=(["'])(.*?)\2([^>]*)>\s*<\/script>/gis)];
+const scriptTags = [...html.matchAll(/<script\b([^>]*?)\bsrc=(["'])(.*?)\2([^>]*)>(?:\s*<\/script>)?/gis)];
 for (const match of scriptTags.reverse()) {
   const attrs = (match[1] || '') + ' ' + (match[4] || '');
   const assetPath = localAssetPath(match[3]);
-  if (!assetPath || !/\btype=(["'])module\1/i.test(attrs)) continue;
+  if (!assetPath) {
+    throw new Error(`No se puede integrar el script externo: ${match[3]}`);
+  }
   const source = await readFile(assetPath, 'utf8');
   const safeSource = source.replace(/<\/script/gi, '<\\/script');
-  html = html.replace(match[0], `<script type="module">\n${safeSource}\n</script>`);
+  const isModule = /\btype=(["'])module\1/i.test(attrs);
+  const inlineTag = isModule ? `<script type="module">\n${safeSource}\n</script>` : `<script>\n${safeSource}\n</script>`;
+  html = html.replace(match[0], inlineTag);
 }
 
 const linkTags = [...html.matchAll(/<link\b([^>]*?)href=(["'])(.*?)\2([^>]*)>/gis)];
