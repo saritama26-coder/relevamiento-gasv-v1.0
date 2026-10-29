@@ -435,6 +435,13 @@ export function FichaForm({
     });
 
     const nextCuan = [...(ficha.cuan || [])];
+    const activePathologyIds = new Set(updated.map((row) => row.id).filter(Boolean));
+    for (let idx = 0; idx < nextCuan.length; idx++) {
+      const quantRow = nextCuan[idx];
+      if (quantRow.origenPatologiaId && !activePathologyIds.has(quantRow.origenPatologiaId)) {
+        nextCuan[idx] = { ...quantRow, porVerificar: true };
+      }
+    }
     updated.forEach((p) => {
       if (!p.elemento || !p.patologia) return;
       let qIdx = p.id ? nextCuan.findIndex((row) => row.origenPatologiaId === p.id) : -1;
