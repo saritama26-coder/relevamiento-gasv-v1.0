@@ -294,7 +294,7 @@ export function FichaForm({
       const normalize = (value: string) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
     const cabinasSinPuertas = (ficha.cons || []).some((row) => {
       const text = normalize(`${row.elemento} ${row.descripcion} ${row.observacion}`);
-      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no hay puertas?)/.test(text);
+      return text.includes('cabina') && /(sin puertas?|no tiene puertas?|no tienen puertas?|no hay puertas?|carecen de puertas?)/.test(text);
     });
     const contradicePuertas = (ficha.pat || []).some((p) => {
       const text = normalize(`${p.elemento} ${p.patologia} ${p.intervencion}`);
