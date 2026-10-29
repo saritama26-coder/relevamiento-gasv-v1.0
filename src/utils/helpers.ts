@@ -603,7 +603,7 @@ export function getFichaValidationWarnings(ficha: Ficha): string[] {
     if (!normElem) return;
 
     // Pisos, paredes y cielo raso deben ser m²
-    if (['piso', 'paredes', 'pared', 'cielo raso', 'cubierta', 'ceramica en piso', 'ceramica en pared', 'pintura en paredes'].some(k => normElem.includes(k))) {
+    if (['piso', 'paredes', 'pared', 'cielo raso', 'cubierta', 'ceramica', 'pintura', 'revestimiento', 'porcelanato', 'azulejo'].some(k => normElem.includes(k))) {
       if (normUn !== 'm²' && normUn !== 'm2') {
         warnings.push(`${tabla} Fila #${idx + 1} (${elem}): elemento de superficie/acabado registrado con unidad "${un}". La unidad estándar es m².`);
       }
