@@ -43,7 +43,16 @@ import { GoogleDriveBackupModal } from './components/GoogleDriveBackupModal';
 import { ExportPdfModal } from './components/ExportPdfModal';
 import { GoogleDriveService, BackupPayload } from './services/googleDriveService';
 import { getAccessToken } from './services/googleAuth';
-import { Cloud, CloudCheck, CloudUpload } from 'lucide-react';
+import {
+  NotificationService,
+  NotificationState,
+  getNotificationPermission,
+  requestNotificationPermission,
+  notifyGoogleDriveBackupFailed,
+  notifyLongSessionAutoSave,
+  sendBrowserNotification,
+} from './services/notificationService';
+import { Cloud, CloudCheck, CloudUpload, Bell, BellOff, BellRing } from 'lucide-react';
 import {
   createEmptyFicha,
   exportCSV,
@@ -167,6 +176,24 @@ export default function App() {
   const [dupCodigo, setDupCodigo] = useState('');
   const [dupAmbiente, setDupAmbiente] = useState('');
 
+  // Web Notifications & Session tracking
+  const [notificationPermission, setNotificationPermission] = useState<NotificationState>(() =>
+    getNotificationPermission()
+  );
+  const sessionStartTimeRef = useRef<number>(Date.now());
+  const lastLongSessionNotifiedRef = useRef<number>(0);
+
+  const handleRequestNotificationPermission = async () => {
+    const granted = await requestNotificationPermission();
+    setNotificationPermission(getNotificationPermission());
+    if (granted) {
+      sendBrowserNotification('🔔 Alertas de escritorio activadas', {
+        body: 'Te avisaremos si un respaldo en Google Drive falla o cuando tu trabajo se guarde en sesiones largas.',
+        tag: 'gasv-welcome-notification',
+      });
+    }
+  };
+
   const isFirstMount = useRef(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const exportButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -243,8 +270,10 @@ export default function App() {
       if (!token) {
         // Do not misreport a missing/expired OAuth token as a successful backup.
         if (lastGdriveBackupTime) {
+          const errMsg = 'Vuelve a autorizar Google Drive para continuar con los respaldos.';
           setGdriveAutoStatus('error');
-          setGdriveAutoError('Vuelve a autorizar Google Drive para continuar con los respaldos.');
+          setGdriveAutoError(errMsg);
+          notifyGoogleDriveBackupFailed(errMsg, false);
         }
         return;
       }
@@ -274,7 +303,9 @@ export default function App() {
       } catch (err: any) {
         console.error('Error in Google Drive auto-backup:', err);
         setGdriveAutoStatus('error');
-        setGdriveAutoError(err.message || 'Error al respaldar en Drive');
+        const errMsg = err?.message || 'Error al respaldar en Drive';
+        setGdriveAutoError(errMsg);
+        notifyGoogleDriveBackupFailed(errMsg, false);
       }
     },
     [lastGdriveBackupTime]
@@ -283,7 +314,11 @@ export default function App() {
   // Manual backup trigger helper for modal
   const handleManualGDriveBackup = useCallback(async () => {
     const token = await getAccessToken();
-    if (!token) throw new Error('Autoriza nuevamente Google Drive para crear el respaldo.');
+    if (!token) {
+      const errMsg = 'Autoriza nuevamente Google Drive para crear el respaldo.';
+      notifyGoogleDriveBackupFailed(errMsg, true);
+      throw new Error(errMsg);
+    }
 
     const payload: BackupPayload = {
       version: '4.0',
@@ -294,15 +329,22 @@ export default function App() {
       fichas,
     };
 
-    await GoogleDriveService.uploadBackup(token, payload, true);
-    const now = new Date().toISOString();
-    setLastGdriveBackupTime(now);
     try {
-      localStorage.setItem('gdrive_last_backup_time', now);
-    } catch {
-      // ignore
+      await GoogleDriveService.uploadBackup(token, payload, true);
+      const now = new Date().toISOString();
+      setLastGdriveBackupTime(now);
+      try {
+        localStorage.setItem('gdrive_last_backup_time', now);
+      } catch {
+        // ignore
+      }
+      setGdriveAutoStatus('synced');
+    } catch (err: any) {
+      console.error('Error in manual Google Drive backup:', err);
+      const errMsg = err?.message || 'Error al crear la copia de seguridad en Google Drive';
+      notifyGoogleDriveBackupFailed(errMsg, true);
+      throw err;
     }
-    setGdriveAutoStatus('synced');
   }, [projectData, catalogos, fichas]);
 
   const handleToggleAutoBackup = useCallback(
@@ -347,6 +389,22 @@ export default function App() {
         setFichas(updatedFichas);
         setHasUnsavedChanges(false);
         setSaveStatus(`Guardado automático ${new Date().toLocaleTimeString('es-EC')}`);
+
+        // Verificación de notificación nativa tras sesión larga de trabajo
+        const now = Date.now();
+        const sessionMinutes = (now - sessionStartTimeRef.current) / (1000 * 60);
+        const minutesSinceLastNotif = (now - lastLongSessionNotifiedRef.current) / (1000 * 60);
+
+        // Umbral de sesión larga: al menos 15 minutos de trabajo acumulado, espaciado cada 15 min
+        if (sessionMinutes >= 15 && minutesSinceLastNotif >= 15) {
+          notifyLongSessionAutoSave({
+            sessionMinutes,
+            totalAmbientes: updatedFichas.length,
+            projectName: projectData.proyecto || undefined,
+          });
+          lastLongSessionNotifiedRef.current = now;
+        }
+
         // Auto-backup to Google Drive in background
         triggerGoogleDriveAutoBackup(updatedFichas, projectData, catalogos);
       } catch (err) {
@@ -1047,10 +1105,42 @@ export default function App() {
         </header>
 
         {/* Auto-save Status Strip */}
-        <div className="print:hidden bg-white border-b border-gray-200 px-4 py-1.5 text-xs">
+        <div className="print:hidden bg-white border-b border-gray-200 px-4 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2">
           <span className={hasUnsavedChanges ? 'text-amber-700 font-semibold' : 'text-slate-500'}>
             {saveStatus || 'Autoguardado activo: los cambios se registran 2,5 s después de la última edición.'}
           </span>
+
+          <div className="flex items-center gap-2 text-slate-500">
+            {notificationPermission === 'default' && (
+              <button
+                type="button"
+                onClick={handleRequestNotificationPermission}
+                className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-medium hover:underline cursor-pointer"
+                title="Habilitar notificaciones en el navegador para fallos de Drive y aviso tras sesiones largas"
+              >
+                <Bell size={13} className="text-sky-600 animate-pulse" />
+                <span>Activar alertas de escritorio</span>
+              </button>
+            )}
+            {notificationPermission === 'granted' && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-medium cursor-help"
+                title="Alertas activas: el navegador te notificará si falla un respaldo o tras guardar en sesiones largas de trabajo"
+              >
+                <Bell size={12} className="text-emerald-600" />
+                <span>Alertas activas</span>
+              </span>
+            )}
+            {notificationPermission === 'denied' && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] text-slate-400 cursor-help"
+                title="Notificaciones bloqueadas en los permisos del navegador"
+              >
+                <BellOff size={12} className="text-slate-400" />
+                <span>Alertas bloqueadas</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Print Header */}

@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   X,
   ShieldCheck,
+  Bell,
+  BellOff,
+  BellRing,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import {
@@ -25,6 +28,7 @@ import {
   DriveFileInfo,
   BackupPayload,
 } from '../services/googleDriveService';
+import { NotificationService, NotificationState } from '../services/notificationService';
 import { Ficha, ProjectData, CatalogosMap } from '../types';
 
 interface GoogleDriveBackupModalProps {
@@ -81,6 +85,55 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
       return true;
     }
   });
+
+  const [notificationState, setNotificationState] = useState<NotificationState>(() =>
+    NotificationService.getPermission()
+  );
+  const [notificationPref, setNotificationPref] = useState<boolean>(() =>
+    NotificationService.getPreference()
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      setNotificationState(NotificationService.getPermission());
+      setNotificationPref(NotificationService.getPreference());
+    }
+  }, [isOpen]);
+
+  const handleRequestNotificationPermission = async () => {
+    const granted = await NotificationService.requestPermission();
+    setNotificationState(NotificationService.getPermission());
+    setNotificationPref(NotificationService.getPreference());
+    if (granted) {
+      setSuccessMessage('Notificaciones del navegador activadas con éxito.');
+      NotificationService.send('🔔 Notificaciones del sistema activadas', {
+        body: 'Recibirás avisos si falla el respaldo de Drive o cuando se complete el auto-guardado en sesiones largas.',
+        tag: 'gasv-welcome-notification',
+      });
+    } else {
+      setErrorMessage('No se concedieron permisos de notificación en el navegador.');
+    }
+  };
+
+  const handleToggleNotificationPref = (enabled: boolean) => {
+    NotificationService.setPreference(enabled);
+    setNotificationPref(enabled);
+  };
+
+  const handleTestFailureNotification = () => {
+    NotificationService.notifyBackupFailed(
+      'Prueba de verificación: simulación de fallo de red en Google Drive',
+      true
+    );
+  };
+
+  const handleTestLongSessionNotification = () => {
+    NotificationService.notifyLongSessionAutoSave({
+      sessionMinutes: 30,
+      totalAmbientes: fichas.length,
+      projectName: projectData.proyecto || undefined,
+    });
+  };
 
   useEffect(() => {
     if (propAutoBackupEnabled !== undefined) {
@@ -202,6 +255,7 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
       setErrorMessage(
         e.message || 'No se pudo subir la copia de seguridad a Google Drive.'
       );
+      NotificationService.notifyBackupFailed(e?.message, true);
     } finally {
       setIsBackingUp(false);
     }
@@ -440,6 +494,82 @@ export const GoogleDriveBackupModal: React.FC<GoogleDriveBackupModalProps> = ({
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{autoBackupError}</span>
               </div>
+            )}
+          </div>
+
+          {/* Web Notification System Section */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center space-x-2">
+                <div className={`p-1.5 rounded-lg ${notificationState === 'granted' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
+                  {notificationState === 'granted' ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-800 text-xs sm:text-sm block">
+                    Notificaciones en el Navegador
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-normal">
+                    Alertas nativas al fallar un respaldo o al auto-guardar en sesiones largas
+                  </span>
+                </div>
+              </div>
+
+              {notificationState === 'granted' ? (
+                <label className="relative inline-flex items-center cursor-pointer" title="Habilitar/deshabilitar avisos de la app">
+                  <input
+                    type="checkbox"
+                    checked={notificationPref}
+                    onChange={(e) => handleToggleNotificationPref(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                </label>
+              ) : notificationState === 'default' ? (
+                <button
+                  type="button"
+                  onClick={handleRequestNotificationPermission}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer shrink-0"
+                >
+                  Activar alertas
+                </button>
+              ) : notificationState === 'denied' ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 font-medium bg-amber-50 px-2 py-1 rounded border border-amber-200 shrink-0">
+                  <BellOff className="w-3.5 h-3.5" />
+                  Bloqueadas
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-400">No soportado</span>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              El sistema utiliza la <strong>API de Notificaciones</strong> del navegador para advertirle si una copia a Google Drive no se completó por fallas de conexión o token expirado, y para confirmar que su avance está seguro tras sesiones largas de relevamiento continuo.
+            </p>
+
+            {notificationState === 'granted' && (
+              <div className="pt-1 flex flex-wrap items-center gap-2 border-t border-slate-200">
+                <span className="text-[11px] font-semibold text-slate-500 mr-1">Probar alertas:</span>
+                <button
+                  type="button"
+                  onClick={handleTestFailureNotification}
+                  className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded text-[11px] font-medium transition-colors cursor-pointer shadow-xs"
+                >
+                  Probar alerta de fallo de Drive
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestLongSessionNotification}
+                  className="px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[11px] font-medium transition-colors cursor-pointer shadow-xs"
+                >
+                  Probar aviso de auto-guardado
+                </button>
+              </div>
+            )}
+
+            {notificationState === 'denied' && (
+              <p className="text-[11px] text-slate-500 bg-white p-2 rounded border border-slate-200">
+                Las notificaciones fueron bloqueadas en este navegador. Para recibirlas, haz clic en el icono del candado o permisos del sitio junto a la barra de direcciones y selecciona "Permitir notificaciones".
+              </p>
             )}
           </div>
 

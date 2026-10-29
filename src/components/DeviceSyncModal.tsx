@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { QrCode, Smartphone, Laptop, ArrowRightLeft, X, Copy, Check, Share2, Cloud, CloudCheck, ShieldCheck, AlertCircle, ExternalLink } from 'lucide-react';
+import { QrCode, Smartphone, Laptop, ArrowRightLeft, X, Copy, Check, Share2, Cloud, CloudCheck, ShieldCheck, AlertCircle, ExternalLink, Bell, BellRing } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
 import { exportProjectBackup, parseProjectBackup } from '../utils/helpers';
+import { NotificationService } from '../services/notificationService';
 
 interface DeviceSyncModalProps {
   fichas: Ficha[];
@@ -421,6 +422,35 @@ export const DeviceSyncModal: React.FC<DeviceSyncModalProps> = ({
                       <strong>Seguridad local:</strong> Tus fichas se siguen guardando en la memoria del navegador de este dispositivo con total normalidad.
                     </li>
                   </ul>
+                </div>
+
+                {/* Notificaciones del navegador */}
+                <div className="bg-white p-3 rounded-lg border border-sky-100 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <BellRing size={16} className="text-sky-600 shrink-0" />
+                    <div>
+                      <span className="font-semibold text-slate-800 block">Alertas del Navegador Activas</span>
+                      <span className="text-[11px] text-slate-500">Notifica fallas de Drive y confirma auto-guardado en sesiones largas</span>
+                    </div>
+                  </div>
+                  {NotificationService.getPermission() === 'default' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await NotificationService.requestPermission();
+                        alert('Permisos de notificación actualizados.');
+                      }}
+                      className="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-[11px] font-semibold transition-colors cursor-pointer shrink-0"
+                    >
+                      Habilitar alertas
+                    </button>
+                  )}
+                  {NotificationService.getPermission() === 'granted' && (
+                    <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-semibold shrink-0">
+                      <Check size={12} />
+                      Conectadas
+                    </span>
+                  )}
                 </div>
 
                 {/* Acceso a la gestión completa de Google Drive */}
