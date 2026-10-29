@@ -844,7 +844,8 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
   let fotosSinDesc = 0;
   fichas.forEach((f) => {
     (f.fotos || []).forEach((foto) => {
-      if (!foto.desc || !foto.desc.trim()) {
+      const desc = normalize(foto.desc || '');
+      if (!desc || ['sin descripcion', 'pendiente', 'por verificar', 's/d'].includes(desc)) {
         fotosSinDesc++;
       }
     });
@@ -865,7 +866,7 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
   fichas.forEach((f) => {
     const sinCuan = !f.cuan || f.cuan.length === 0;
     const sinId = !f.codigo?.trim() || !f.ambiente?.trim();
-    const incompletoMarcado = Boolean(f.incompleto || (f.cuan || []).some((q) => q.porVerificar));
+    const incompletoMarcado = Boolean(f.incompleto || f.porVerificar || (f.cuan || []).some((q) => q.porVerificar));
     if (sinCuan || sinId || incompletoMarcado) {
       incompletos.push(f.codigo || f.ambiente || 'S/C');
     }
