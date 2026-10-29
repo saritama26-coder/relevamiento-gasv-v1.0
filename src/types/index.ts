@@ -67,6 +67,7 @@ export interface CuantificacionRow {
   prioridad: string;
   origenPatologiaId?: string;
   origenConstructivoId?: string;
+  origenAcabado?: 'pintura' | 'ceramica';
   cantidadCalculada?: boolean;
   cantidadDerivada?: string;
   cantidadManual?: boolean;
