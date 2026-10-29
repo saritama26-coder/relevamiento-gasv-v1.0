@@ -59,7 +59,7 @@ const htmlMarkupOnly = html.replace(/<script\b(?![^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\
 const remainingScripts = [...htmlMarkupOnly.matchAll(/<script\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi)].map((m) => m[0]);
 const remainingStyles = [...htmlMarkupOnly.matchAll(/<link\b[^>]*\brel=(["'])stylesheet\1[^>]*>/gi)].map((m) => m[0]);
 if (remainingScripts.length || remainingStyles.length) {
-  throw new Error(`Quedaron referencias externas de JavaScript o CSS; no se generó el HTML autónomo. Scripts: ${remainingScripts.join(' | ') || 'ninguno'}. Hojas: ${remainingStyles.join(' | ') || 'ninguna'}.`);
+  throw new Error(`Quedaron referencias externas de JavaScript o CSS; scriptTags detectadas: ${scriptTags.length}. Scripts: ${remainingScripts.join(' | ') || 'ninguno'}. Hojas: ${remainingStyles.join(' | ') || 'ninguna'}.`);
 }
 
 const outputPath = path.join(distDir, 'Relevamiento_Arquitectonico_GASV_autonomo.html');
