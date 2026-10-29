@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
   Search,
   AlertTriangle,
+  PieChart,
 } from 'lucide-react';
 import { Ficha, ProjectData, CatalogosMap, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from './types';
 import { StorageService } from './services/storage';
@@ -36,6 +37,7 @@ import { ConsolidatedReport } from './components/ConsolidatedReport';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { DeviceSyncModal } from './components/DeviceSyncModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { DrawerSummaryView } from './components/DrawerSummaryView';
 import { GSARITAMA_HEADER_LOGO } from './constants/logoData';
 import { GoogleDriveBackupModal } from './components/GoogleDriveBackupModal';
 import { ExportPdfModal } from './components/ExportPdfModal';
@@ -120,6 +122,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedAmbienteId, setSelectedAmbienteId] = useState<string | null>(null);
   const [drawerSearchQuery, setDrawerSearchQuery] = useState('');
+  const [drawerActiveTab, setDrawerActiveTab] = useState<'ambientes' | 'resumen'>('ambientes');
   const [showNuevoRelevamientoModal, setShowNuevoRelevamientoModal] = useState(false);
 
   // Configuración de secciones activas para la exportación a PDF / Impresión
@@ -1254,145 +1257,189 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Campo de búsqueda en tiempo real */}
-              <div className="p-3 bg-slate-50 border-b border-slate-200 shrink-0">
-                <div className="relative flex items-center">
-                  <Search size={16} className="absolute left-3 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={drawerSearchQuery}
-                    onChange={(e) => setDrawerSearchQuery(e.target.value)}
-                    placeholder="Buscar por código o nombre de ambiente..."
-                    className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 placeholder-slate-400 transition-all shadow-2xs"
-                    autoFocus
-                  />
-                  {drawerSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setDrawerSearchQuery('')}
-                      className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition-colors cursor-pointer"
-                      title="Borrar búsqueda"
-                      aria-label="Borrar búsqueda"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
+              {/* Selector de pestañas del panel: Ambientes vs Resumen */}
+              <div className="flex border-b border-slate-200 bg-white shrink-0 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setDrawerActiveTab('ambientes')}
+                  className={`flex-1 py-2.5 px-3 flex items-center justify-center gap-2 border-b-2 transition-colors cursor-pointer ${
+                    drawerActiveTab === 'ambientes'
+                      ? 'border-blue-600 text-blue-900 font-bold bg-blue-50/40'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  <LayoutList size={14} className={drawerActiveTab === 'ambientes' ? 'text-blue-600' : 'text-slate-400'} />
+                  <span>Ambientes ({fichas.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawerActiveTab('resumen')}
+                  className={`flex-1 py-2.5 px-3 flex items-center justify-center gap-2 border-b-2 transition-colors cursor-pointer ${
+                    drawerActiveTab === 'resumen'
+                      ? 'border-blue-600 text-blue-900 font-bold bg-blue-50/40'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  <PieChart size={14} className={drawerActiveTab === 'resumen' ? 'text-blue-600' : 'text-slate-400'} />
+                  <span>Resumen (Áreas y Estados)</span>
+                </button>
+              </div>
 
-                {/* Resumen de resultados del filtro */}
-                {fichas.length > 0 && (
-                  <div className="flex justify-between items-center mt-2 px-1 text-[11px] text-slate-500">
-                    <span>
-                      {drawerSearchQuery.trim()
-                        ? `${filteredDrawerFichas.length} de ${fichas.length} ${filteredDrawerFichas.length === 1 ? 'ambiente encontrado' : 'ambientes encontrados'}`
-                        : `${fichas.length} ${fichas.length === 1 ? 'ambiente guardado' : 'ambientes guardados'}`}
-                    </span>
-                    {drawerSearchQuery.trim() && (
-                      <button
-                        type="button"
-                        onClick={() => setDrawerSearchQuery('')}
-                        className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
-                      >
-                        Limpiar filtro
-                      </button>
+              {drawerActiveTab === 'resumen' ? (
+                <div className="flex-1 overflow-y-auto">
+                  <DrawerSummaryView
+                    fichas={fichas}
+                    projectData={projectData}
+                    onSelectAmbiente={handleSelectAmbiente}
+                    onFilterInList={(term) => {
+                      setDrawerSearchQuery(term);
+                      setDrawerActiveTab('ambientes');
+                    }}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Campo de búsqueda en tiempo real */}
+                  <div className="p-3 bg-slate-50 border-b border-slate-200 shrink-0">
+                    <div className="relative flex items-center">
+                      <Search size={16} className="absolute left-3 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={drawerSearchQuery}
+                        onChange={(e) => setDrawerSearchQuery(e.target.value)}
+                        placeholder="Buscar por código o nombre de ambiente..."
+                        className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 placeholder-slate-400 transition-all shadow-2xs"
+                        autoFocus
+                      />
+                      {drawerSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setDrawerSearchQuery('')}
+                          className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition-colors cursor-pointer"
+                          title="Borrar búsqueda"
+                          aria-label="Borrar búsqueda"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Resumen de resultados del filtro */}
+                    {fichas.length > 0 && (
+                      <div className="flex justify-between items-center mt-2 px-1 text-[11px] text-slate-500">
+                        <span>
+                          {drawerSearchQuery.trim()
+                            ? `${filteredDrawerFichas.length} de ${fichas.length} ${filteredDrawerFichas.length === 1 ? 'ambiente encontrado' : 'ambientes encontrados'}`
+                            : `${fichas.length} ${fichas.length === 1 ? 'ambiente guardado' : 'ambientes guardados'}`}
+                        </span>
+                        {drawerSearchQuery.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setDrawerSearchQuery('')}
+                            className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                          >
+                            Limpiar filtro
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              {/* Lista de ambientes filtrados */}
-              <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                {fichas.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <p className="text-slate-500 italic text-sm">No hay fichas guardadas aún.</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDrawer(false);
-                        handleNuevoAmbiente();
-                      }}
-                      className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-500 transition-colors cursor-pointer"
-                    >
-                      Crear nuevo ambiente
-                    </button>
-                  </div>
-                ) : filteredDrawerFichas.length === 0 ? (
-                  <div className="text-center py-10 px-4 bg-slate-50 border border-dashed border-slate-300 rounded-lg">
-                    <Search size={28} className="mx-auto text-slate-400 mb-2" />
-                    <p className="text-sm font-semibold text-slate-700">Sin coincidencias</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      No se encontraron ambientes con &ldquo;{drawerSearchQuery}&rdquo; en código o nombre.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setDrawerSearchQuery('')}
-                      className="mt-3 px-3 py-1.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold hover:bg-blue-200 transition-colors cursor-pointer"
-                    >
-                      Mostrar todos los ambientes
-                    </button>
-                  </div>
-                ) : (
-                  filteredDrawerFichas.map((f) => {
-                    const isActive = activeFicha.id === f.id;
-                    return (
-                      <div
-                        key={f.id}
-                        className={`border rounded-lg p-3 bg-white shadow-xs hover:shadow-md transition-all ${
-                          isActive ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50/20' : 'border-slate-200'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="min-w-0 pr-2">
-                            <h3 className="font-bold text-sm text-slate-800 flex items-center flex-wrap gap-1.5">
-                              <span className="font-mono text-xs bg-slate-100 text-blue-900 border border-slate-200 px-1.5 py-0.5 rounded font-bold">
-                                {renderHighlightedText(f.codigo || 'S/C', drawerSearchQuery)}
-                              </span>
-                              <span className="truncate">
-                                {renderHighlightedText(f.ambiente || 'Sin nombre', drawerSearchQuery)}
-                              </span>
-                              {isActive && (
-                                <span className="text-[10px] bg-blue-600 text-white font-semibold px-1.5 py-0.2 rounded-full">
-                                  En edición
-                                </span>
-                              )}
-                            </h3>
-                            <p className="text-xs text-slate-500 mt-1">
-                              {f.bloque || projectData.bloque || 'Sin bloque'} | {f.nivel || 'Sin nivel'}
-                            </p>
-                          </div>
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded shrink-0">
-                            Fotos: {f.fotos?.length || 0}
-                          </span>
-                        </div>
-                        <div className="flex space-x-2 mt-3">
-                          <button
-                            type="button"
-                            onClick={() => handleSelectAmbiente(f.id)}
-                            className="flex-1 bg-blue-50 text-blue-700 py-1.5 rounded text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
-                          >
-                            {isActive ? 'Recargar' : 'Cargar'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDuplicate(f.id)}
-                            className="flex-1 bg-green-50 text-green-700 py-1.5 rounded text-xs font-semibold hover:bg-green-100 flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            <Copy size={12} className="mr-1" /> Duplicar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteAmbiente(f.id)}
-                            className="bg-red-50 text-red-600 p-1.5 rounded hover:bg-red-100 transition-colors cursor-pointer"
-                            title="Eliminar"
-                          >
-                            <Trash size={16} />
-                          </button>
-                        </div>
+                  {/* Lista de ambientes filtrados */}
+                  <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                    {fichas.length === 0 ? (
+                      <div className="text-center py-12 px-4">
+                        <p className="text-slate-500 italic text-sm">No hay fichas guardadas aún.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowDrawer(false);
+                            handleNuevoAmbiente();
+                          }}
+                          className="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-500 transition-colors cursor-pointer"
+                        >
+                          Crear nuevo ambiente
+                        </button>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                    ) : filteredDrawerFichas.length === 0 ? (
+                      <div className="text-center py-10 px-4 bg-slate-50 border border-dashed border-slate-300 rounded-lg">
+                        <Search size={28} className="mx-auto text-slate-400 mb-2" />
+                        <p className="text-sm font-semibold text-slate-700">Sin coincidencias</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          No se encontraron ambientes con &ldquo;{drawerSearchQuery}&rdquo; en código o nombre.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setDrawerSearchQuery('')}
+                          className="mt-3 px-3 py-1.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold hover:bg-blue-200 transition-colors cursor-pointer"
+                        >
+                          Mostrar todos los ambientes
+                        </button>
+                      </div>
+                    ) : (
+                      filteredDrawerFichas.map((f) => {
+                        const isActive = activeFicha.id === f.id;
+                        return (
+                          <div
+                            key={f.id}
+                            className={`border rounded-lg p-3 bg-white shadow-xs hover:shadow-md transition-all ${
+                              isActive ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50/20' : 'border-slate-200'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="min-w-0 pr-2">
+                                <h3 className="font-bold text-sm text-slate-800 flex items-center flex-wrap gap-1.5">
+                                  <span className="font-mono text-xs bg-slate-100 text-blue-900 border border-slate-200 px-1.5 py-0.5 rounded font-bold">
+                                    {renderHighlightedText(f.codigo || 'S/C', drawerSearchQuery)}
+                                  </span>
+                                  <span className="truncate">
+                                    {renderHighlightedText(f.ambiente || 'Sin nombre', drawerSearchQuery)}
+                                  </span>
+                                  {isActive && (
+                                    <span className="text-[10px] bg-blue-600 text-white font-semibold px-1.5 py-0.2 rounded-full">
+                                      En edición
+                                    </span>
+                                  )}
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {f.bloque || projectData.bloque || 'Sin bloque'} | {f.nivel || 'Sin nivel'}
+                                </p>
+                              </div>
+                              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded shrink-0">
+                                Fotos: {f.fotos?.length || 0}
+                              </span>
+                            </div>
+                            <div className="flex space-x-2 mt-3">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectAmbiente(f.id)}
+                                className="flex-1 bg-blue-50 text-blue-700 py-1.5 rounded text-xs font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                              >
+                                {isActive ? 'Recargar' : 'Cargar'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDuplicate(f.id)}
+                                className="flex-1 bg-green-50 text-green-700 py-1.5 rounded text-xs font-semibold hover:bg-green-100 flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <Copy size={12} className="mr-1" /> Duplicar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAmbiente(f.id)}
+                                className="bg-red-50 text-red-600 p-1.5 rounded hover:bg-red-100 transition-colors cursor-pointer"
+                                title="Eliminar"
+                              >
+                                <Trash size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

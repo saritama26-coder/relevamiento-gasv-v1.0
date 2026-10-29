@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronUp, ChevronDown, BookmarkPlus, Trash } from 'lucide-react';
 import { useCatalogos } from '../context/CatalogContext';
 
@@ -64,6 +65,12 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
     setOpen(true);
   };
 
+  const handleSelectOption = (option: string) => {
+    onChange(option);
+    setFilter('');
+    setOpen(false);
+  };
+
   useEffect(() => {
     if (!open) return;
     const handleOutsideClick = (event: MouseEvent) => {
@@ -72,7 +79,13 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
         setOpen(false);
       }
     };
-    const closeForViewportChange = () => setOpen(false);
+    const closeForViewportChange = (event: Event) => {
+      // No cerrar si el scroll proviene de dentro del menú desplegable
+      if (menuRef.current && (event.target === menuRef.current || menuRef.current.contains(event.target as Node))) {
+        return;
+      }
+      setOpen(false);
+    };
     document.addEventListener('mousedown', handleOutsideClick);
     window.addEventListener('resize', closeForViewportChange);
     window.addEventListener('scroll', closeForViewportChange, true);
@@ -109,40 +122,46 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
           type="button"
           aria-label="Mostrar lista de opciones"
           title="Mostrar lista de opciones"
-          className="absolute right-0 top-0 flex h-full w-7 items-center justify-center text-slate-500 hover:bg-blue-50 hover:text-blue-700 rounded-r"
+          className="absolute right-0 top-0 flex h-full w-7 items-center justify-center text-slate-500 hover:bg-blue-50 hover:text-blue-700 rounded-r cursor-pointer"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => openMenu(true)}
         >
           <ChevronDown size={15} />
         </button>
       </div>
-      {open && menuStyle && (
+      {open && menuStyle && typeof document !== 'undefined' && createPortal(
         <div
           ref={menuRef}
           style={menuStyle}
-          className="fixed overflow-y-auto rounded-md border border-slate-300 bg-white py-1 shadow-xl print:hidden"
+          className="fixed overflow-y-auto rounded-md border border-slate-300 bg-white py-1 shadow-xl print:hidden z-[10000]"
           onMouseDown={(event) => event.stopPropagation()}
         >
-          {filteredOptions.length > 0 ? filteredOptions.map((option) => (
-            <button
-              type="button"
-              key={option}
-              className="block w-full px-3 py-2 text-left text-sm text-slate-800 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
-              onClick={() => {
-                onChange(option);
-                setFilter('');
-                setOpen(false);
-                inputRef.current?.focus();
-              }}
-            >
-              {option}
-            </button>
-          )) : (
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => (
+              <button
+                type="button"
+                key={option}
+                className="block w-full px-3 py-2 text-left text-sm text-slate-800 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleSelectOption(option);
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleSelectOption(option);
+                }}
+              >
+                {option}
+              </button>
+            ))
+          ) : (
             <div className="px-3 py-2 text-xs text-slate-500">
               Sin coincidencias. Puede conservar el texto escrito.
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
