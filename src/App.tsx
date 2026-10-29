@@ -780,6 +780,12 @@ export default function App() {
     duplicated.diagestado = duplicatedState;
     duplicated.updatedAt = new Date().toISOString();
 
+    const duplicateBlockingErrors = getFichaBlockingErrors(duplicated, target);
+    if (duplicateBlockingErrors.length > 0) {
+      alert(`No se puede crear la copia hasta corregir los nuevos errores:\n\n${duplicateBlockingErrors.map((error) => `• ${error}`).join('\n')}`);
+      return;
+    }
+
     loadFicha(duplicated);
     setDupTargetId(null);
     setShowDrawer(false);
