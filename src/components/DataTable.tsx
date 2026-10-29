@@ -158,11 +158,9 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
                 key={option}
                 className="block w-full px-3 py-2 text-left text-sm text-slate-800 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none cursor-pointer"
                 onMouseDown={(event) => {
+                  // Confirmar la selección una sola vez antes de que el input pierda el foco.
+                  // Evita que mousedown y click ejecuten dos actualizaciones consecutivas.
                   event.preventDefault();
-                  event.stopPropagation();
-                  handleSelectOption(option);
-                }}
-                onClick={(event) => {
                   event.stopPropagation();
                   handleSelectOption(option);
                 }}
