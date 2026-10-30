@@ -1020,7 +1020,7 @@ export function FichaForm({
           actionWidth="8%"
           actionMinWidth={96}
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '15%' },
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '17%' },
             { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '13%' },
             
             { key: 'cantidad', label: 'Cantidad afectada', type: 'number', width: '8%' },
