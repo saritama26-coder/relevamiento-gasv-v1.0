@@ -21,12 +21,19 @@ export const ELECTRICAS_ELEM_BASE = [
   "Conmutador", "Tablero eléctrico", "Caja de paso", "Ventilador", "Otro"
 ];
 
+/** Aparatos físicos que se inventarían en la Sección 4 y no deben duplicarse en la Sección 6. */
+export const APARATOS_EQUIPAMIENTO_HIDRO_LEGACY = [
+  "Inodoro", "Lavamanos", "Urinario", "Fregadero", "Ducha", "Hidromasaje",
+  "Accesorios sanitarios"
+];
+
 export const HIDROSANITARIAS_ELEM_BASE = [
-  "Inodoro", "Lavamanos", "Urinario", "Fregadero", "Ducha", "Llave de paso",
-  "Llave de lavamanos", "Manguera abasto lavamanos", "Manguera abasto inodoro",
-  "Juego de herraje", "Juego de herraje para inodoro", "Accesorios sanitarios",
-  "Punto de desagüe", "Sifón", "Sifón de lavamanos", "Coladera / sumidero",
-  "Punto de agua", "Tubería visible", "Otro"
+  "Llave de paso", "Grifería", "Llave de lavamanos",
+  "Manguera abasto lavamanos", "Manguera abasto inodoro",
+  "Juego de herraje", "Juego de herraje para inodoro",
+  "Punto de agua", "Punto de desagüe", "Sifón", "Sifón de lavamanos",
+  "Coladera / sumidero", "Tubería visible", "Tubería empotrada",
+  "Conexión flexible", "Válvula de descarga", "Accesorio de conexión", "Otro"
 ];
 
 export const ESTADOS = ["Bueno", "Regular", "Malo", "Crítico"];
