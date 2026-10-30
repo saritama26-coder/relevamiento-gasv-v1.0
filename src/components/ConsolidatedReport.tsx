@@ -508,7 +508,7 @@ export function ConsolidatedReport({
                       <tr>
                         <th className="p-1 border border-slate-300">Elemento</th>
                         <th className="p-1 border border-slate-300">Patología</th>
-                        <th className="p-1 border border-slate-300">Cantidad</th>
+                        <th className="p-1 border border-slate-300">Cantidad afectada</th>
                         <th className="p-1 border border-slate-300">Severidad</th>
                         <th className="p-1 border border-slate-300">Referencia de inventario</th>
                       </tr>
