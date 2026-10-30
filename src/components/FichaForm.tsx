@@ -1026,8 +1026,8 @@ export function FichaForm({
             { key: 'cantidad', label: 'Cantidad afectada', type: 'number', width: '8%' },
             { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '6%' },
             { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '10%' },
-            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '13%' },
-            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '24%', displayOnly: true },
+            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '18%' },
+            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '19%', displayOnly: true },
           ]}
         />
       </div>
@@ -1191,15 +1191,18 @@ export function FichaForm({
         <DataTable
           data={ficha.cuan}
           onChange={(newData) => onChange({ cuan: newData })}
+          fixedLayout
+          actionMenu
+          actionWidth="7%"
+          actionMinWidth={84}
           columns={[
-            { key: 'codigo', label: 'Código', type: 'text', width: '10%' },
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-pat-elem' },
-            { key: 'actividad', label: 'Trabajo a ejecutar', type: 'text' },
-            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
-            { key: 'prioridad', label: 'Prioridad', type: 'select', options: PRIORIDADES, width: '15%' },
-          ]}
+            { key: 'codigo', label: 'Código', type: 'text', width: '8%' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-pat-elem', width: '13%' },
+            { key: 'actividad', label: 'Trabajo a ejecutar', type: 'text', width: '26%' },
+            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '9%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '8%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '13%' },
+            { key: 'prioridad', label: 'Prioridad', type: 'select', options: PRIORIDADES, width: '16%' },          ]}
         />
       </div>
 
