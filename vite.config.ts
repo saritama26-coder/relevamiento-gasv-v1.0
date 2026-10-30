@@ -78,7 +78,8 @@ export default {};`;
       react(),
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
+        injectRegister: 'script',
         includeAssets: [
           'apple-touch-icon.png',
           'icon.svg',
@@ -101,10 +102,22 @@ export default {};`;
           scope: '/relevamiento-gasv-v1.0/',
           icons: [
             {
-              src: './gasv-icon-right.png',
+              src: './pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
+            },
+            {
+              src: './pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: './pwa-maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
             },
           ],
         },
