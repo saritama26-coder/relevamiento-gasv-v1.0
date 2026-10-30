@@ -446,6 +446,33 @@ export function nextConsecutive(val: string): string {
 }
 
 /**
+ * Sugiere el siguiente código a partir de un patrón existente, evitando colisiones.
+ * No inventa prefijos ni genera códigos cuando la referencia no termina en números.
+ */
+export function suggestNextAvailableCode(
+  referenceCode: string,
+  existingFichas: Array<Pick<Ficha, 'codigo'>>,
+): string {
+  const reference = String(referenceCode || '').trim();
+  if (!reference) return '';
+
+  let candidate = nextConsecutive(reference);
+  if (!candidate || candidate === reference) return '';
+
+  const normalize = (value: string) =>
+    String(value || '').trim().toLocaleLowerCase();
+
+  const used = new Set(existingFichas.map((ficha) => normalize(ficha.codigo)));
+  for (let attempt = 0; attempt < 1000 && used.has(normalize(candidate)); attempt += 1) {
+    const next = nextConsecutive(candidate);
+    if (!next || next === candidate) return '';
+    candidate = next;
+  }
+
+  return used.has(normalize(candidate)) ? '' : candidate;
+}
+
+/**
  * Parsea una cadena de dimensión (ej. "3.50 x 4.20 m" o "3.50*4.20") y extrae largo, ancho y área.
  */
 export function parseDimensions(dimStr: string): { largo: number; ancho: number; area: number } | null {
