@@ -54,11 +54,10 @@ function rowObservation(row: Record<string, unknown>): string {
 }
 
 function rowDetail(row: Record<string, unknown>): string {
-  return [row.descripcion, row.observacion]
-    .map((value) => String(value ?? '').trim())
-    .filter(isInformativeDetail)
-    .filter((value, index, values) => values.findIndex((item) => normalize(item) === normalize(value)) === index)
-    .join(' · ');
+  // La referencia conserva la descripción del elemento; la observación se
+  // mantiene en el inventario y no se mezcla con el identificador de origen.
+  const description = String(row.descripcion ?? '').trim();
+  return isInformativeDetail(description) ? description : '';
 }
 
 /**
@@ -67,7 +66,26 @@ function rowDetail(row: Record<string, unknown>): string {
  * sus campos correspondientes y no se repiten dentro de esta columna.
  */
 function sourceReference(sectionLabel: string, detail: string): string {
-  const section = sectionLabel.split(' · ')[0].trim() || sectionLabel.trim();
+  const match = sectionLabel.match(/^Secci[oó]n\\s+(\\d+)/i);
+  const section = match ? `S${match[1]}` : sectionLabel.split(' · ')[0].trim() || sectionLabel.trim();
+  return detail ? `${section} · Detalle: ${detail}` : section;
+}
+
+/** Normaliza referencias históricas para mostrarlas con el formato compacto actual. */
+export function normalizePathologySourceReference(value: unknown): string {
+  const reference = String(value ?? '').trim();
+  const match = reference.match(/^Secci[oó]n\\s+(\\d+)\\b/i);
+  if (!match) return reference;
+
+  const section = `S${match[1]}`;
+  const remainder = reference.slice(match[0].length).replace(/^\\s*·\\s*/, '').trim();
+  if (!remainder) return section;
+
+  const detail = remainder
+    .replace(/^Detalle:\\s*/i, '')
+    .split(/\\s*·\\s*/)
+    [0]
+    .trim();
   return detail ? `${section} · Detalle: ${detail}` : section;
 }
 
