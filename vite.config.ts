@@ -78,7 +78,7 @@ export default {};`;
       react(),
       tailwindcss(),
       VitePWA({
-        registerType: 'prompt',
+        registerType: 'autoUpdate',
         injectRegister: 'script',
         includeAssets: [
           'apple-touch-icon.png',
@@ -124,6 +124,11 @@ export default {};`;
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+          // Activa la versión nueva sin esperar confirmación manual y solicita
+          // a las pestañas abiertas que adopten el service worker actualizado.
+          clientsClaim: true,
+          skipWaiting: true,
+          cleanupOutdatedCaches: true,
         },
         // Keep the PWA service worker off during the AI Studio development preview.
         devOptions: {
