@@ -238,9 +238,9 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
   const handleUpdate = (idx: number, key: string, value: any) => {
     const column = columns.find((item) => item.key === key);
     const normalizedValue = String(value ?? '').trim().normalize('NFD')
-      .replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+      .replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const isExcluded = column?.excludeOptions?.some((item) =>
-      item.trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase() === normalizedValue
+      item.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === normalizedValue
     );
     if (isExcluded) {
       alert('Este aparato se registra en la Sección 4. En la Sección 6 registre únicamente sus conexiones e instalaciones.');
@@ -577,7 +577,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                         ) : col.dataListId ? (
                           <CatalogInput
                             value={String(val)}
-                            options={listas[col.dataListId] || []}
+                            options={(listas[col.dataListId] || []).filter((option) => !col.excludeOptions?.some((excluded) => excluded.trim().toLowerCase() === option.trim().toLowerCase()))}
                             onChange={(nextValue) => handleUpdate(idx, col.key, nextValue)}
                             className="w-full min-w-0 p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
                           />
