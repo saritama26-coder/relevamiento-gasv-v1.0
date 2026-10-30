@@ -58,7 +58,7 @@ export function FichaForm({
   const codigoMissing = !String(ficha.codigo || '').trim();
   const ambienteMissing = !String(ficha.ambiente || '').trim();
   const [observationVariant, setObservationVariant] = useState(0);
-  const [selectedRoomTemplate, setSelectedRoomTemplate] = useState(ROOM_TEMPLATES[0].id);
+  const [selectedRoomTemplate, setSelectedRoomTemplate] = useState('');
 
   // Redacción técnica asistida, basada únicamente en los datos registrados en la ficha.
   // El código identificador se excluye deliberadamente del texto generado.
@@ -498,18 +498,20 @@ export function FichaForm({
               value={selectedRoomTemplate}
               onChange={(event) => setSelectedRoomTemplate(event.target.value)}
             >
+              <option value="" disabled>Seleccione un tipo de ambiente</option>
               {ROOM_TEMPLATES.map((template) => (
                 <option key={template.id} value={template.id}>{template.label}</option>
               ))}
             </select>
             <p className="mt-1 text-[11px] text-slate-600">
-              {ROOM_TEMPLATES.find((template) => template.id === selectedRoomTemplate)?.description}
+              {ROOM_TEMPLATES.find((template) => template.id === selectedRoomTemplate)?.description || 'Seleccione una plantilla para consultar los elementos sugeridos.'}
             </p>
           </div>
           <button
             type="button"
             onClick={handleApplyRoomTemplate}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
+            disabled={!selectedRoomTemplate}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             <WandSparkles size={16} />
             Aplicar plantilla
