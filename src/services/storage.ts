@@ -7,11 +7,38 @@ const store = localforage.createInstance({
   storeName: 'fichas_v4',
 });
 
+/**
+ * Lee el conjunto de fichas sin convertir errores de almacenamiento en una lista vacía.
+ * Una lectura fallida nunca debe interpretarse como una base de datos sin registros.
+ */
+export async function readStoredFichas(
+  read: () => Promise<unknown>
+): Promise<{ storedFichas: Ficha[]; fichas: Ficha[] }> {
+  try {
+    const value = await read();
+    if (value == null) {
+      return { storedFichas: [], fichas: [] };
+    }
+    if (!Array.isArray(value)) {
+      throw new Error('El contenido almacenado de las fichas no tiene un formato válido.');
+    }
+    const storedFichas = value as Ficha[];
+    return {
+      storedFichas,
+      fichas: storedFichas.map((ficha) => migrateLegacyObservations(ficha)),
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`No se pudieron leer las fichas del almacenamiento local. No se modificó ningún registro. Detalle: ${detail}`);
+  }
+}
+
 export const StorageService = {
   async getFichas(): Promise<Ficha[]> {
     try {
-      const storedFichas = (await store.getItem<Ficha[]>('fichas')) || [];
-      const fichas = storedFichas.map((ficha) => migrateLegacyObservations(ficha));
+      const { storedFichas, fichas } = await readStoredFichas(
+        () => store.getItem<unknown>('fichas')
+      );
       // Persist the one-time migration so reopening the app does not duplicate notes.
       if (fichas.some((ficha, index) => ficha !== storedFichas[index])) {
         try {
@@ -24,7 +51,7 @@ export const StorageService = {
       return fichas;
     } catch (e) {
       console.error('Error getting fichas from storage:', e);
-      return [];
+      throw e;
     }
   },
 
@@ -77,13 +104,7 @@ export const StorageService = {
       };
     } catch (e) {
       console.error('Error getting project data:', e);
-      return {
-        proyecto: '',
-        ubicacion: '',
-        bloque: '',
-        profesional: 'Arq. Gabriel Saritama Veira',
-        contacto: 'saritama26@gmail.com',
-      };
+      throw new Error('No se pudieron leer los datos generales del proyecto. No se sobrescribió la información existente.');
     }
   },
 
@@ -102,7 +123,7 @@ export const StorageService = {
       return cats || {};
     } catch (e) {
       console.error('Error getting catalogos:', e);
-      return {};
+      throw new Error('No se pudieron leer los catálogos personalizados. No se sobrescribió la información existente.');
     }
   },
 
