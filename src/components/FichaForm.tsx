@@ -26,6 +26,7 @@ import {
   ASISTENTE_DEFAULTS,
   getElementoDefaults,
   suggestIntervencion,
+  APARATOS_EQUIPAMIENTO_HIDRO_LEGACY,
 } from '../constants/catalogos';
 import {
   compressImage,
@@ -64,6 +65,58 @@ export function FichaForm({
   const [showPathologyTransfer, setShowPathologyTransfer] = useState(false);
   const [pathologyTransferCandidates, setPathologyTransferCandidates] = useState<PathologyTransferCandidate[]>([]);
   const [selectedPathologySources, setSelectedPathologySources] = useState<string[]>([]);
+
+  // Migración conservadora: los aparatos que estaban registrados en la antigua
+  // Sección 6 pasan a la Sección 4, conservando ID, cantidades, estado y observación.
+  // No se eliminan ni se fusionan registros: solo cambia su sección de inventario.
+  const migratedHydroRowsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const fichaId = String(ficha.id || '');
+    if (!fichaId || migratedHydroRowsRef.current.has(fichaId)) return;
+
+    const legacyNames = new Set(
+      APARATOS_EQUIPAMIENTO_HIDRO_LEGACY.map((item) =>
+        item.trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+      )
+    );
+    const currentHydro = Array.isArray(ficha.hidro) ? ficha.hidro : [];
+    const movedRows = currentHydro.filter((row) => {
+      const name = String(row.elemento || '').trim().normalize('NFD')
+        .replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+      return legacyNames.has(name);
+    });
+    if (!movedRows.length) return;
+
+    migratedHydroRowsRef.current.add(fichaId);
+    const remainingHydro = currentHydro.filter((row) => !movedRows.includes(row));
+    const movedToEquipment = movedRows.map((row) => ({
+      ...row,
+      descripcion: '',
+    }));
+
+    // Actualiza referencias de patologías vinculadas a los registros migrados.
+    const migratedIds = new Set(movedRows.map((row) => String(row.id || '')));
+    const updatedPathologies = (Array.isArray(ficha.pat) ? ficha.pat : []).map((row) => {
+      const originKey = String(row.origenKey || '');
+      const linkedId = originKey.startsWith('gasv:hidro:')
+        ? originKey.slice('gasv:hidro:'.length)
+        : '';
+      if (!linkedId || !migratedIds.has(linkedId)) return row;
+      return {
+        ...row,
+        origenKey: originKey.replace('gasv:hidro:', 'gasv:equip:'),
+        referenciaOrigen: String(row.referenciaOrigen || '').replace(/^S6\\b/, 'S4'),
+      };
+    });
+
+    onChange({
+      equip: [...(Array.isArray(ficha.equip) ? ficha.equip : []), ...movedToEquipment],
+      hidro: remainingHydro,
+      ...(updatedPathologies.some((row, index) => row !== ficha.pat[index])
+        ? { pat: updatedPathologies }
+        : {}),
+    });
+  }, [ficha.id, ficha.hidro, ficha.equip, ficha.pat, onChange]);
 
   // Redacción técnica asistida, basada únicamente en los datos registrados en la ficha.
   // El código identificador se excluye deliberadamente del texto generado.
@@ -848,21 +901,22 @@ export function FichaForm({
           data={ficha.cons}
           onChange={(newData) => handleGenericElemTableChange('cons', newData)}
           fixedLayout
-          actionWidth="8%"
-          actionMinWidth={104}
+          actionWidth="6%"
+          actionMinWidth={48}
+          actionMenu
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem', width: '21%' },
-            { key: 'descripcion', label: 'Descripción', type: 'text', width: '18%' },
-            { key: 'dimension', label: 'Dimensión', type: 'text', width: '13%' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem', width: '20%' },
+            { key: 'descripcion', label: 'Descripción', type: 'text', width: '17%' },
+            { key: 'dimension', label: 'Dimensión', type: 'text', width: '12%' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '8%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '7%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '13%' },
-            { key: 'observacion', label: 'Observación', type: 'text', width: '12%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '6%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '12%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '19%' },
           ]}
         />
       </div>
 
-      {/* 4. Aparatos y equipamiento */}
+      {/* 4. Aparatos sanitarios, accesorios y equipamiento */}
       <div id="inventario-s4" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.equipamiento ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           4. Aparatos y equipamiento
@@ -871,15 +925,16 @@ export function FichaForm({
           data={ficha.equip}
           onChange={(newData) => handleGenericElemTableChange('equip', newData)}
           fixedLayout
-          actionWidth="8%"
-          actionMinWidth={104}
+          actionWidth="6%"
+          actionMinWidth={48}
+          actionMenu
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem', width: '25%' },
-            { key: 'descripcion', label: 'Descripción', type: 'text', width: '22%' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem', width: '23%' },
+            { key: 'descripcion', label: 'Descripción', type: 'text', width: '20%' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '9%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '8%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '14%' },
-            { key: 'observacion', label: 'Observación', type: 'text', width: '14%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '7%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '13%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '22%' },
           ]}
         />
       </div>
@@ -893,19 +948,20 @@ export function FichaForm({
           data={ficha.elec}
           onChange={(newData) => handleGenericElemTableChange('elec', newData)}
           fixedLayout
-          actionWidth="8%"
-          actionMinWidth={104}
+          actionWidth="6%"
+          actionMinWidth={48}
+          actionMenu
           columns={[
             { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem', width: '30%' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '9%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '8%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '18%' },
-            { key: 'observacion', label: 'Observación', type: 'text', width: '25%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '28%' },
           ]}
         />
       </div>
 
-      {/* 6. Instalaciones hidrosanitarias */}
+      {/* 6. Instalaciones, conexiones y accesorios hidrosanitarios */}
       <div id="inventario-s6" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.hidrosanitarias ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           6. Instalaciones hidrosanitarias
@@ -914,14 +970,15 @@ export function FichaForm({
           data={ficha.hidro}
           onChange={(newData) => handleGenericElemTableChange('hidro', newData)}
           fixedLayout
-          actionWidth="8%"
-          actionMinWidth={104}
+          actionWidth="6%"
+          actionMinWidth={48}
+          actionMenu
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem', width: '30%' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem', width: '27%', excludeOptions: APARATOS_EQUIPAMIENTO_HIDRO_LEGACY },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '9%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '8%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '18%' },
-            { key: 'observacion', label: 'Observación', type: 'text', width: '25%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '31%' },
           ]}
         />
       </div>
