@@ -849,7 +849,7 @@ export default function App() {
     const checklist = getProjectVerificationChecklist(listToVerify);
     if (checklist.hasPending) {
       const summary = checklist.items
-        .filter((i) => i.status === 'warning')
+        .filter((i) => i.status === 'warning' || i.status === 'error')
         .map((i) => `• ${i.title}: ${i.detail}`)
         .join('\n');
       const proceed = confirm(
@@ -961,6 +961,10 @@ export default function App() {
         fichas={fichas}
         projectData={projectData}
         onClose={() => setShowConsolidated(false)}
+        onOpenFicha={(fichaId) => {
+          setShowConsolidated(false);
+          handleSelectAmbiente(fichaId);
+        }}
       />
     );
   }
