@@ -28,7 +28,7 @@ function normalize(value: unknown): string {
   return String(value ?? '')
     .trim()
     .normalize('NFD')
-    .replace(/[\\u0300-\\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase();
 }
 
