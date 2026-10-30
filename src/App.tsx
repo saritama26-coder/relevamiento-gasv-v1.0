@@ -661,7 +661,15 @@ export default function App() {
         return;
       }
     }
-    await StorageService.saveFicha(activeFicha);
+    try {
+      await StorageService.saveFicha(activeFicha);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo guardar la ficha.';
+      setStorageReadError(message);
+      setSaveStatus('Error de almacenamiento: guardado suspendido');
+      alert(`No se pudo guardar la ficha. Los registros existentes se mantienen protegidos. ${message}`);
+      return;
+    }
     const updated = await StorageService.getFichas();
     setFichas(updated);
     setHasUnsavedChanges(false);
