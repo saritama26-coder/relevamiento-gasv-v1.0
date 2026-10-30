@@ -48,7 +48,7 @@ export interface PatologiaRow {
   intervencion: string;
   /** Identificador del registro de inventario que originó la transferencia, si aplica. */
   origenKey?: string;
-  /** Referencia legible del estado, cantidad inventariada y observación de origen. */
+  /** Referencia concisa a la sección de inventario y su detalle descriptivo. */
   referenciaOrigen?: string;
 }
 
