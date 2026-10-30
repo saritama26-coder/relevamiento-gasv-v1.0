@@ -12,6 +12,8 @@ export interface ColumnDef {
   dataListId?: string;
   /** Muestra el valor como texto de solo lectura, permitiendo ajuste de línea. */
   displayOnly?: boolean;
+  /** Presentación compacta de referencias internas a secciones del inventario. */
+  displayKind?: 'sourceReference';
 }
 
 interface DataTableProps {
@@ -26,6 +28,8 @@ interface DataTableProps {
   actionMinWidth?: number;
   /** Sustituye los iconos visibles por un menú contextual compacto. */
   actionMenu?: boolean;
+  /** Acción opcional al seleccionar un campo de solo lectura. */
+  onDisplayOnlyClick?: (row: any) => void;
 }
 
 function isCustomValue(listas: Record<string, string[]>, listId: string, val: any): boolean {
@@ -192,7 +196,7 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
   );
 }
 
-export function DataTable({ columns, data, onChange, fixedLayout = false, actionWidth, actionMinWidth, actionMenu = false }: DataTableProps) {
+export function DataTable({ columns, data, onChange, fixedLayout = false, actionWidth, actionMinWidth, actionMenu = false, onDisplayOnlyClick }: DataTableProps) {
   const { listas, agregar } = useCatalogos();
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const [openActionMenu, setOpenActionMenu] = useState<{ rowIndex: number; top: number; left: number } | null>(null);
@@ -401,12 +405,26 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                         {col.label}
                       </label>
                       {col.displayOnly ? (
-                        <div
-                          className="w-full min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs leading-5 whitespace-normal break-words"
-                          title={String(val || '')}
-                        >
-                          {String(val || '—')}
-                        </div>
+                        col.displayKind === 'sourceReference' ? (() => {
+                          const raw = String(val || '').trim();
+                          const match = raw.match(/^(S[3-6])(?:\\s*[·:–-]\\s*(.*))?$/i);
+                          const section = match?.[1]?.toUpperCase() || '';
+                          const detail = (match?.[2] || raw || 'Sin referencia').replace(/^Detalle:\\s*/i, '').trim();
+                          const content = (
+                            <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-left">
+                              {section && <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">{section}</span>}
+                              <span className="min-w-0 truncate text-xs font-medium text-slate-700">{detail}</span>
+                              {section && <span className="shrink-0 text-[10px] text-blue-600">↗</span>}
+                            </span>
+                          );
+                          return section && onDisplayOnlyClick ? (
+                            <button type="button" onClick={() => onDisplayOnlyClick(row)} title={raw} className="w-full min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left hover:border-blue-300 hover:bg-blue-50">{content}</button>
+                          ) : (
+                            <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2" title={raw}>{content}</div>
+                          );
+                        })() : (
+                          <div className="w-full min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs leading-5 whitespace-normal break-words" title={String(val || '')}>{String(val || '—')}</div>
+                        )
                       ) : col.type === 'select' ? (
                         <select
                           className="w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
@@ -511,12 +529,26 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                         style={fixedLayout ? { width: col.width } : undefined}
                       >
                         {col.displayOnly ? (
-                          <div
-                            className="w-full min-w-0 px-1 py-1 text-xs leading-5 whitespace-normal break-words"
-                            title={String(val || '')}
-                          >
-                            {String(val || '—')}
-                          </div>
+                          col.displayKind === 'sourceReference' ? (() => {
+                            const raw = String(val || '').trim();
+                            const match = raw.match(/^(S[3-6])(?:\\s*[·:–-]\\s*(.*))?$/i);
+                            const section = match?.[1]?.toUpperCase() || '';
+                            const detail = (match?.[2] || raw || 'Sin referencia').replace(/^Detalle:\\s*/i, '').trim();
+                            const content = (
+                              <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-left">
+                                {section && <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">{section}</span>}
+                                <span className="min-w-0 truncate text-xs font-medium text-slate-700">{detail}</span>
+                                {section && <span className="shrink-0 text-[10px] text-blue-600">↗</span>}
+                              </span>
+                            );
+                            return section && onDisplayOnlyClick ? (
+                              <button type="button" onClick={() => onDisplayOnlyClick(row)} title={raw} className="w-full min-w-0 rounded px-1 py-1 text-left hover:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-400">{content}</button>
+                            ) : (
+                              <div className="w-full min-w-0 px-1 py-1" title={raw}>{content}</div>
+                            );
+                          })() : (
+                            <div className="w-full min-w-0 px-1 py-1 text-xs leading-5 whitespace-normal break-words" title={String(val || '')}>{String(val || '—')}</div>
+                          )
                         ) : col.type === 'select' ? (
                           <select
                             className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
