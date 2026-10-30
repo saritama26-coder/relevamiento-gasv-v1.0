@@ -210,10 +210,10 @@ export function FichaForm({
       `• Equipamiento: ${result.addedBySection.equip}`,
       `• Instalaciones eléctricas: ${result.addedBySection.elec}`,
       `• Instalaciones hidrosanitarias: ${result.addedBySection.hidro}`,
-    ].join('\\n');
+    ].join('\n');
 
     const confirmed = window.confirm(
-      `Se agregarán ${result.addedCount} elementos de referencia para "${template.label}":\\n\\n${detail}\\n\\nNo se reemplazarán los registros existentes. Las cantidades, dimensiones, estados y observaciones quedarán vacíos para su verificación en sitio.\\n\\n¿Desea aplicar la plantilla?`
+      `Se agregarán ${result.addedCount} elementos de referencia para "${template.label}":\n\n${detail}\n\nNo se reemplazarán los registros existentes. Las cantidades, dimensiones, estados y observaciones quedarán vacíos para su verificación en sitio.\n\n¿Desea aplicar la plantilla?`
     );
     if (!confirmed) return;
 
