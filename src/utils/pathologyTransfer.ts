@@ -28,7 +28,7 @@ function normalize(value: unknown): string {
   return String(value ?? '')
     .trim()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\\u0300-\\u036f]/g, '')
     .toLocaleLowerCase();
 }
 
@@ -61,12 +61,14 @@ function rowDetail(row: Record<string, unknown>): string {
     .join(' · ');
 }
 
-function sourceReference(section: string, state: string, quantity: string, unit: string, detail: string): string {
-  const parts = [section];
-  if (state) parts.push(`Estado registrado: ${state}`);
-  if (quantity) parts.push(`Cantidad inventariada: ${quantity}${unit ? ` ${unit}` : ''}`);
-  if (detail) parts.push(`Detalle: ${detail}`);
-  return parts.join(' | ');
+/**
+ * La referencia de la sección 7 solo identifica la sección de procedencia
+ * y el detalle descriptivo. El estado, cantidad y unidad se conservan en
+ * sus campos correspondientes y no se repiten dentro de esta columna.
+ */
+function sourceReference(sectionLabel: string, detail: string): string {
+  const section = sectionLabel.split(' · ')[0].trim() || sectionLabel.trim();
+  return detail ? `${section} · Detalle: ${detail}` : section;
 }
 
 /**
@@ -123,9 +125,10 @@ export function collectPathologyTransferCandidates(
 }
 
 /**
- * Crea filas de diagnóstico como borradores. La cantidad afectada, ubicación,
- * patología, severidad e intervención quedan vacías para valoración profesional.
- * La cantidad del inventario solo se conserva dentro de la referencia de origen.
+ * Crea filas de diagnóstico como borradores. La cantidad y unidad se
+ * precargan desde el inventario como valores iniciales editables; el inspector
+ * debe confirmar o ajustar la cantidad realmente afectada. Patología,
+ * ubicación, severidad e intervención quedan vacías para valoración profesional.
  */
 export function createPathologyRowsFromCandidates(
   candidates: PathologyTransferCandidate[],
@@ -141,16 +144,13 @@ export function createPathologyRowsFromCandidates(
       elemento: candidate.element,
       patologia: '',
       ubicacion: '',
-      cantidad: '',
+      cantidad: candidate.quantity,
       unidad: candidate.unit,
       severidad: '',
       intervencion: '',
       origenKey: candidate.key,
       referenciaOrigen: sourceReference(
         candidate.sourceLabel,
-        candidate.state,
-        candidate.quantity,
-        candidate.unit,
         candidate.detail,
       ),
     }));
