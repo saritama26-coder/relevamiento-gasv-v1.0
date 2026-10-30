@@ -508,7 +508,6 @@ export function ConsolidatedReport({
                       <tr>
                         <th className="p-1 border border-slate-300">Elemento</th>
                         <th className="p-1 border border-slate-300">Patología</th>
-                        <th className="p-1 border border-slate-300">Ubicación</th>
                         <th className="p-1 border border-slate-300">Cantidad</th>
                         <th className="p-1 border border-slate-300">Severidad</th>
                         <th className="p-1 border border-slate-300">Referencia de inventario</th>
@@ -519,7 +518,6 @@ export function ConsolidatedReport({
                         <tr key={rIdx}>
                           <td className="p-1 border border-slate-300">{row.elemento}</td>
                           <td className="p-1 border border-slate-300">{row.patologia}</td>
-                          <td className="p-1 border border-slate-300">{row.ubicacion}</td>
                           <td className="p-1 border border-slate-300">
                             {row.cantidad} {row.unidad}
                           </td>
