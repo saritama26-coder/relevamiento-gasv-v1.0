@@ -21,6 +21,7 @@ test('detecta elementos Regular/Malo/Crítico y observaciones informativas en se
       { id: 'c1', elemento: 'Paredes', estado: 'Malo', cantidad: '30.00', unidad: 'm²', observacion: 'Humedad en esquina' },
       { id: 'c2', elemento: 'Piso', estado: 'Bueno', cantidad: '20.00', unidad: 'm²', observacion: 'Sin novedades' },
       { id: 'c3', elemento: 'Puerta', estado: 'Regular', cantidad: '1.00', unidad: 'u', observacion: '' },
+      { id: 'c4', elemento: 'Ventana', estado: 'Bueno', descripcion: 'Ventana de aluminio', cantidad: '2.00', unidad: 'u', observacion: '' },
     ],
     elec: [
       { id: 'e1', elemento: 'Tomacorriente', estado: 'Crítico', cantidad: '2.00', unidad: 'u', observacion: 'Carcasa rota' },
