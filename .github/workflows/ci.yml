@@ -23,13 +23,13 @@ jobs:
       run: npm install --legacy-peer-deps
 
     - name: Run regression tests
-      run: npm test
+      run: bun run test
 
     - name: Type check & Lint
-      run: npm run lint
+      run: bun run lint
 
     - name: Prepare React/Vite entry point
       run: cp index.vite.html index.html
 
     - name: Build production bundle
-      run: npm run build
+      run: bun run build
