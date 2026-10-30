@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#17365d" />
+      <stop offset="100%" stop-color="#0f233d" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+  <!-- Background with rounded corners for standalone PWA -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  
+  <!-- Architectural Blueprint Grid lines -->
+  <path d="M 64 128 L 448 128 M 64 256 L 448 256 M 64 384 L 448 384 M 128 64 L 128 448 M 256 64 L 256 448 M 384 64 L 384 448" 
+        stroke="#ffffff" stroke-opacity="0.1" stroke-width="2" stroke-dasharray="6,6"/>
+  
+  <!-- Architectural Building & Floorplan Glyph -->
+  <g transform="translate(106, 96)">
+    <!-- Building silhouette / floorplan structure -->
+    <path d="M 150 20 L 270 90 L 270 290 L 30 290 L 30 90 Z" 
+          fill="none" stroke="url(#accent)" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
+    
+    <!-- Floor plan divisions -->
+    <path d="M 30 180 L 170 180 L 170 290 M 170 230 L 270 230" 
+          fill="none" stroke="#38bdf8" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+          
+    <!-- Measurement Dimension Lines -->
+    <path d="M 10 90 L 10 290 M 0 90 L 20 90 M 0 290 L 20 290" 
+          fill="none" stroke="#f59e0b" stroke-width="6" stroke-linecap="round"/>
+          
+    <!-- Architectural Stylized Ruler/Compass triangle -->
+    <polygon points="150,55 220,135 150,135" fill="#38bdf8" fill-opacity="0.25" stroke="#38bdf8" stroke-width="8"/>
+    
+    <!-- Door swing arc symbol -->
+    <path d="M 170 180 A 50 50 0 0 1 220 230" fill="none" stroke="#10b981" stroke-width="8" stroke-dasharray="4,4"/>
+  </g>
+
+  <!-- Tag / Logo Text -->
+  <text x="256" y="440" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+        font-size="32" font-weight="bold" fill="#ffffff" text-anchor="middle" letter-spacing="4">
+    RELEVAMIENTO
+  </text>
+  <text x="256" y="470" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+        font-size="18" font-weight="600" fill="#94a3b8" text-anchor="middle" letter-spacing="2">
+    ARQ. G. SARITAMA
+  </text>
+</svg>
