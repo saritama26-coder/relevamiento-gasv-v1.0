@@ -425,11 +425,22 @@ export function FichaForm({
   };
 
   const handleApplyPathologyTransfer = () => {
+    const existingKeys = new Set(
+      (Array.isArray(ficha.pat) ? ficha.pat : [])
+        .map((row) => String(row.origenKey || '').trim())
+        .filter(Boolean)
+    );
+    const freshCandidates = pathologyTransferCandidates.filter(
+      (candidate) => !existingKeys.has(candidate.key)
+    );
     const rows = createPathologyRowsFromCandidates(
-      pathologyTransferCandidates,
+      freshCandidates,
       selectedPathologySources,
     );
-    if (!rows.length) return;
+    if (!rows.length) {
+      alert('Los registros seleccionados ya fueron transferidos o no hay elementos nuevos.');
+      return;
+    }
 
     onChange({ pat: [...(Array.isArray(ficha.pat) ? ficha.pat : []), ...rows] });
     setShowPathologyTransfer(false);
@@ -453,11 +464,6 @@ export function FichaForm({
 
       // La intervención se sugiere únicamente cuando ya se ha registrado
       // una patología o severidad de forma expresa.
-      const patologiaChanged = prev && row.patologia !== prev.patologia;
-      const severidadChanged = prev && row.severidad !== prev.severidad;
-      const intervencionChangedByUser = prev && row.intervencion !== prev.intervencion;
-
-      if (!intervencionChangedByUser && (patologiaChanged || severidadChanged || (!newRow.intervencion && (newRow.patologia || newRow.severidad)))) {
       const patologiaChanged = prev && row.patologia !== prev.patologia;
       const severidadChanged = prev && row.severidad !== prev.severidad;
       const intervencionChangedByUser = prev && row.intervencion !== prev.intervencion;
