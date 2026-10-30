@@ -1013,15 +1013,16 @@ export function FichaForm({
         <DataTable
           data={ficha.pat}
           onChange={handlePatTableChange}
+          fixedLayout
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem' },
-            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos' },
-            { key: 'ubicacion', label: 'Ubicación', type: 'text', dataListId: 'list-pat-ubic' },
-            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
-            { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '15%' },
-            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES },
-            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '24%' },
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '11%' },
+            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '13%' },
+            { key: 'ubicacion', label: 'Ubicación', type: 'text', dataListId: 'list-pat-ubic', width: '9%' },
+            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '8%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '7%' },
+            { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '11%' },
+            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '15%' },
+            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '18%', displayOnly: true },
           ]}
         />
       </div>
