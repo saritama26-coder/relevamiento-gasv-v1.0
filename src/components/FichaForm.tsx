@@ -920,7 +920,8 @@ export function FichaForm({
         </div>
         <p className="mb-3 text-xs text-slate-600 print:hidden">
           La detección propone elementos con estado Regular, Malo o Crítico, o con observaciones informativas.
-          La transferencia no confirma una patología: cantidad afectada, daño, ubicación y severidad deben verificarse.
+          La cantidad y unidad se precargan desde el inventario como referencia editable; confirme o ajuste la cantidad realmente afectada.
+          La transferencia no confirma una patología: daño, ubicación y severidad deben verificarse.
         </p>
         {showPathologyTransfer && (
           <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 print:hidden">
