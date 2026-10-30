@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   WandSparkles,
   Trash,
@@ -32,6 +32,7 @@ import {
   calculateArea,
   calculatePerimeter,
   priorityFromState,
+  priorityFromSeverity,
   lookupReference,
   calculateFinishesTotals,
   getWorstSeverityState,
@@ -328,9 +329,7 @@ export function FichaForm({
     const cuantificaciones = Array.isArray(ficha.cuan) ? ficha.cuan : [];
     const buildQuantification = (p: (typeof patologias)[number]) => {
       const estado = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
-      const prioridad = p.severidad === 'Crítica' || p.severidad === 'Severa'
-        ? 'Alta'
-        : p.severidad === 'Moderada' ? 'Media' : 'Baja';
+      const prioridad = priorityFromSeverity(p.severidad);
       const actividad = `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()}`.trim();
       return { estado, prioridad, actividad };
     };
@@ -546,6 +545,28 @@ export function FichaForm({
 
   const finishesTotals = useMemo(() => calculateFinishesTotals(ficha), [ficha]);
   const worstSeverityInfo = useMemo(() => getWorstSeverityState(ficha.pat), [ficha.pat]);
+
+  // Sincroniza el estado general con la mayor severidad registrada.
+  // Si no existen patologías con severidad válida, conserva la clasificación manual.
+  useEffect(() => {
+    const normalizeSeverity = (value: unknown) =>
+      String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+    const hasValidSeverity = (ficha.pat || []).some((row) =>
+      ['critica', 'severa', 'moderada', 'leve'].includes(normalizeSeverity(row.severidad))
+    );
+    if (!hasValidSeverity || !worstSeverityInfo.estado) return;
+
+    if (
+      ficha.estadoDimensional !== worstSeverityInfo.estado ||
+      ficha.diagestado !== worstSeverityInfo.estado
+    ) {
+      onChange({
+        estadoDimensional: worstSeverityInfo.estado,
+        diagestado: worstSeverityInfo.estado,
+      });
+    }
+  }, [ficha.pat, ficha.estadoDimensional, ficha.diagestado, worstSeverityInfo.estado, onChange]);
+
   const validationWarnings = useMemo(() => getFichaValidationWarnings(ficha), [ficha]);
 
   const handleFinalizarClick = () => {
@@ -788,16 +809,15 @@ export function FichaForm({
                 </option>
               ))}
             </select>
-            {ficha.pat.length > 0 && worstSeverityInfo.estado && (ficha.estadoDimensional || ficha.diagestado) !== worstSeverityInfo.estado && (
-              <div className="mt-1.5 flex items-center justify-between text-[11px] text-amber-800 bg-amber-50 p-1.5 rounded border border-amber-200">
-                <span>Peor severidad: <strong>{worstSeverityInfo.severidadMax}</strong> ({worstSeverityInfo.estado})</span>
-                <button
-                  type="button"
-                  onClick={() => onChange({ estadoDimensional: worstSeverityInfo.estado, diagestado: worstSeverityInfo.estado })}
-                  className="px-2 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded font-bold transition-colors cursor-pointer text-[10px]"
-                >
-                  Sincronizar a {worstSeverityInfo.estado}
-                </button>
+            {(ficha.pat || []).some((row) =>
+              ['critica', 'severa', 'moderada', 'leve'].includes(
+                String(row.severidad || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+              )
+            ) && (
+              <div className="mt-1.5 text-[11px] text-slate-700 bg-slate-50 p-2 rounded border border-slate-200">
+                <strong>Estado determinado automáticamente:</strong> {worstSeverityInfo.estado} ·
+                Mayor severidad registrada: <strong>{worstSeverityInfo.severidadMax}</strong>.
+                <span className="block mt-0.5 text-slate-500">La clasificación se actualiza al registrar o modificar patologías.</span>
               </div>
             )}
           </div>
@@ -827,14 +847,17 @@ export function FichaForm({
         <DataTable
           data={ficha.cons}
           onChange={(newData) => handleGenericElemTableChange('cons', newData)}
+          fixedLayout
+          actionWidth="8%"
+          actionMinWidth={104}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem' },
-            { key: 'descripcion', label: 'Descripción', type: 'text' },
-            { key: 'dimension', label: 'Dimensión', type: 'text' },
-            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '17%' },
-            { key: 'observacion', label: 'Observación', type: 'text' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-cons-elem', width: '21%' },
+            { key: 'descripcion', label: 'Descripción', type: 'text', width: '18%' },
+            { key: 'dimension', label: 'Dimensión', type: 'text', width: '13%' },
+            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '8%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '7%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '13%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '12%' },
           ]}
         />
       </div>
@@ -847,13 +870,16 @@ export function FichaForm({
         <DataTable
           data={ficha.equip}
           onChange={(newData) => handleGenericElemTableChange('equip', newData)}
+          fixedLayout
+          actionWidth="8%"
+          actionMinWidth={104}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem' },
-            { key: 'descripcion', label: 'Descripción', type: 'text' },
-            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
-            { key: 'observacion', label: 'Observación', type: 'text' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-equip-elem', width: '25%' },
+            { key: 'descripcion', label: 'Descripción', type: 'text', width: '22%' },
+            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '9%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '8%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '14%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '14%' },
           ]}
         />
       </div>
@@ -866,12 +892,15 @@ export function FichaForm({
         <DataTable
           data={ficha.elec}
           onChange={(newData) => handleGenericElemTableChange('elec', newData)}
+          fixedLayout
+          actionWidth="8%"
+          actionMinWidth={104}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem' },
-            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '15%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '20%' },
-            { key: 'observacion', label: 'Observación', type: 'text' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-elec-elem', width: '30%' },
+            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '9%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '18%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '25%' },
           ]}
         />
       </div>
@@ -884,12 +913,15 @@ export function FichaForm({
         <DataTable
           data={ficha.hidro}
           onChange={(newData) => handleGenericElemTableChange('hidro', newData)}
+          fixedLayout
+          actionWidth="8%"
+          actionMinWidth={104}
           columns={[
-            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem' },
-            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '15%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '15%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '20%' },
-            { key: 'observacion', label: 'Observación', type: 'text' },
+            { key: 'elemento', label: 'Elemento', type: 'text', dataListId: 'list-hidro-elem', width: '30%' },
+            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '9%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '18%' },
+            { key: 'observacion', label: 'Observación', type: 'text', width: '25%' },
           ]}
         />
       </div>
