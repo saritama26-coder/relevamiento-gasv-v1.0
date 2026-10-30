@@ -64,11 +64,9 @@ function addDataSheet(
 ): ExcelJS.Worksheet {
   const sheet = workbook.addWorksheet(name);
   styleTitle(sheet, headers.length, title, subtitle);
-  sheet.columns = headers.map((header, index) => ({
-    header,
-    key: 'c' + index,
-    width: widths[index] || 18,
-  }));
+  widths.forEach((width, index) => {
+    sheet.getColumn(index + 1).width = width || 18;
+  });
   sheet.addTable({
     name: 'Tbl' + name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]/g, ''),
     ref: 'A4',
@@ -275,9 +273,6 @@ export function createProjectExcelWorkbook(
   );
 
   records.forEach((ficha) => {
-    (ficha.pat || []).forEach((item) => {
-      // Deliberately excludes the internal location field: the workbook follows the visible pathology register.
-    });
     (ficha.fotos || []).forEach((photo, index) => {
       const rowIndex = photoRows.length + 4;
       let imageLabel = 'Vista previa no disponible · consultar la aplicación';
