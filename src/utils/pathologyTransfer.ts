@@ -66,7 +66,7 @@ function rowDetail(row: Record<string, unknown>): string {
  * sus campos correspondientes y no se repiten dentro de esta columna.
  */
 function sourceReference(sectionLabel: string, detail: string): string {
-  const match = sectionLabel.match(/^Secci[oó]n\\s+(\\d+)/i);
+  const match = sectionLabel.match(/^Secci[oó]n\s+(\d+)/i);
   const section = match ? `S${match[1]}` : sectionLabel.split(' · ')[0].trim() || sectionLabel.trim();
   return detail ? `${section} · Detalle: ${detail}` : section;
 }
@@ -74,16 +74,16 @@ function sourceReference(sectionLabel: string, detail: string): string {
 /** Normaliza referencias históricas para mostrarlas con el formato compacto actual. */
 export function normalizePathologySourceReference(value: unknown): string {
   const reference = String(value ?? '').trim();
-  const match = reference.match(/^Secci[oó]n\\s+(\\d+)\\b/i);
+  const match = reference.match(/^Secci[oó]n\s+(\d+)\b/i);
   if (!match) return reference;
 
   const section = `S${match[1]}`;
-  const remainder = reference.slice(match[0].length).replace(/^\\s*·\\s*/, '').trim();
+  const remainder = reference.slice(match[0].length).replace(/^\s*·\s*/, '').trim();
   if (!remainder) return section;
 
   const detail = remainder
-    .replace(/^Detalle:\\s*/i, '')
-    .split(/\\s*·\\s*/)
+    .replace(/^Detalle:\s*/i, '')
+    .split(/\s*·\s*/)
     [0]
     .trim();
   return detail ? `${section} · Detalle: ${detail}` : section;
