@@ -49,6 +49,10 @@ function isInformativeDetail(value: string): boolean {
   ].includes(normalized);
 }
 
+function rowObservation(row: Record<string, unknown>): string {
+  return String(row.observacion ?? '').trim();
+}
+
 function rowDetail(row: Record<string, unknown>): string {
   return [row.descripcion, row.observacion]
     .map((value) => String(value ?? '').trim())
@@ -91,8 +95,11 @@ export function collectPathologyTransferCandidates(
       const state = String(row.estado ?? '').trim();
       const stateKey = normalize(state);
       const hasRelevantState = ['regular', 'malo', 'critico'].includes(stateKey);
+      const observation = rowObservation(row);
+      const hasInformativeObservation = isInformativeDetail(observation);
+      // Una descripción del material/equipo no es por sí sola una novedad.
       const detail = rowDetail(row);
-      if (!hasRelevantState && !detail) return;
+      if (!hasRelevantState && !hasInformativeObservation) return;
 
       const rowId = String(row.id ?? '').trim() || `row-${index}-${normalize(element)}`;
       const keyValue = `gasv:${key}:${rowId}`;
