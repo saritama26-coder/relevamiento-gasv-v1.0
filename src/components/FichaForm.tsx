@@ -12,6 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import { Ficha, ProjectData, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from '../types';
+import { ROOM_TEMPLATES, applyRoomTemplate } from '../constants/roomTemplates';
 import { DataTable } from './DataTable';
 import { useCatalogos } from '../context/CatalogContext';
 import {
@@ -57,6 +58,7 @@ export function FichaForm({
   const codigoMissing = !String(ficha.codigo || '').trim();
   const ambienteMissing = !String(ficha.ambiente || '').trim();
   const [observationVariant, setObservationVariant] = useState(0);
+  const [selectedRoomTemplate, setSelectedRoomTemplate] = useState(ROOM_TEMPLATES[0].id);
 
   // Redacción técnica asistida, basada únicamente en los datos registrados en la ficha.
   // El código identificador se excluye deliberadamente del texto generado.
@@ -191,6 +193,34 @@ export function FichaForm({
   const handleClearObservations = () => {
     if (!String(ficha.obs || '').trim()) return;
     if (window.confirm('¿Desea limpiar las observaciones generales?')) onChange({ obs: '' });
+  };
+
+  const handleApplyRoomTemplate = () => {
+    const template = ROOM_TEMPLATES.find((item) => item.id === selectedRoomTemplate);
+    if (!template) return;
+
+    const result = applyRoomTemplate(ficha, template);
+    if (result.addedCount === 0) {
+      alert('La ficha ya contiene todos los elementos de esta plantilla. No se modificó ningún dato.');
+      return;
+    }
+
+    const detail = [
+      `• Elementos constructivos: ${result.addedBySection.cons}`,
+      `• Equipamiento: ${result.addedBySection.equip}`,
+      `• Instalaciones eléctricas: ${result.addedBySection.elec}`,
+      `• Instalaciones hidrosanitarias: ${result.addedBySection.hidro}`,
+    ].join('\\n');
+
+    const confirmed = window.confirm(
+      `Se agregarán ${result.addedCount} elementos de referencia para "${template.label}":\\n\\n${detail}\\n\\nNo se reemplazarán los registros existentes. Las cantidades, dimensiones, estados y observaciones quedarán vacíos para su verificación en sitio.\\n\\n¿Desea aplicar la plantilla?`
+    );
+    if (!confirmed) return;
+
+    onChange({
+      ...result.patch,
+      ...(String(ficha.ambiente || '').trim() ? {} : { ambiente: template.ambiente }),
+    });
   };
 
   const [asistente, setAsistente] = useState({
@@ -452,6 +482,43 @@ export function FichaForm({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 print:hidden">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-blue-950">Registro rápido por plantilla</h2>
+            <p className="mt-1 text-xs text-blue-800">
+              Cargue una lista inicial de elementos según el tipo de ambiente. Revise y elimine lo que no exista en sitio.
+            </p>
+            <label htmlFor="gasv-room-template" className="mt-3 block text-xs font-semibold text-slate-700">
+              Tipo de ambiente
+            </label>
+            <select
+              id="gasv-room-template"
+              className="mt-1 w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm sm:max-w-md"
+              value={selectedRoomTemplate}
+              onChange={(event) => setSelectedRoomTemplate(event.target.value)}
+            >
+              {ROOM_TEMPLATES.map((template) => (
+                <option key={template.id} value={template.id}>{template.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-600">
+              {ROOM_TEMPLATES.find((template) => template.id === selectedRoomTemplate)?.description}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleApplyRoomTemplate}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
+          >
+            <WandSparkles size={16} />
+            Aplicar plantilla
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] text-blue-900">
+          La plantilla no asigna cantidades ni estados. Solo agrega referencias; la inspección profesional determina los datos reales.
+        </p>
+      </div>
       {/* 1. Datos Generales */}
       <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.datosGenerales ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
