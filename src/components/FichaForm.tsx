@@ -182,13 +182,13 @@ export function FichaForm({
     describeRows('Elementos constructivos y acabados', ficha.cons, [
       'descripcion', 'dimension', 'cantidad', 'unidad', 'estado', 'observacion',
     ], 3);
-    describeRows('Aparatos y equipamiento', ficha.equip, [
+    describeRows('Aparatos sanitarios, accesorios y equipamiento', ficha.equip, [
       'descripcion', 'cantidad', 'unidad', 'estado', 'observacion',
     ], 3);
     describeRows('Instalaciones eléctricas', ficha.elec, [
       'cantidad', 'unidad', 'estado', 'observacion',
     ], 3);
-    describeRows('Instalaciones hidrosanitarias', ficha.hidro, [
+    describeRows('Instalaciones, conexiones y accesorios hidrosanitarios', ficha.hidro, [
       'cantidad', 'unidad', 'estado', 'observacion',
     ], 3);
 
