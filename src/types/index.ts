@@ -46,6 +46,10 @@ export interface PatologiaRow {
   unidad: string;
   severidad: string;
   intervencion: string;
+  /** Identificador del registro de inventario que originó la transferencia, si aplica. */
+  origenKey?: string;
+  /** Referencia legible del estado, cantidad inventariada y observación de origen. */
+  referenciaOrigen?: string;
 }
 
 export interface CuantificacionRow {
@@ -57,6 +61,8 @@ export interface CuantificacionRow {
   unidad: string;
   estado: string;
   prioridad: string;
+  /** Evita generar más de una actividad desde la misma patología. */
+  origenPatologiaId?: string;
 }
 
 export interface FotoRegistro {
