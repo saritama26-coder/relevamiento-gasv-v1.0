@@ -511,6 +511,7 @@ export function ConsolidatedReport({
                         <th className="p-1 border border-slate-300">Ubicación</th>
                         <th className="p-1 border border-slate-300">Cantidad</th>
                         <th className="p-1 border border-slate-300">Severidad</th>
+                        <th className="p-1 border border-slate-300">Referencia de inventario</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -523,6 +524,7 @@ export function ConsolidatedReport({
                             {row.cantidad} {row.unidad}
                           </td>
                           <td className="p-1 border border-slate-300">{row.severidad}</td>
+                          <td className="p-1 border border-slate-300 break-words">{row.referenciaOrigen || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
