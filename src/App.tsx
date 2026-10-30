@@ -1286,17 +1286,6 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => {
-                      setShowConsolidated(true);
-                      setExportDropdownOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border-t border-slate-700/60 cursor-pointer"
-                  >
-                    <Layers size={15} className="text-purple-400 shrink-0" />
-                    <span>Resumen Consolidado (PDF)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
                       setShowExportModal(true);
                       setExportDropdownOpen(false);
                     }}
