@@ -143,7 +143,6 @@ export function FichaForm({
       .map((row) => {
         const details = [
           row.patologia ? `patología: ${row.patologia}` : '',
-          row.ubicacion ? `ubicación: ${row.ubicacion}` : '',
           row.cantidad ? `cantidad afectada: ${row.cantidad}` : '',
           row.unidad ? `unidad: ${row.unidad}` : '',
           row.severidad ? `severidad: ${row.severidad}` : '',
@@ -332,7 +331,7 @@ export function FichaForm({
       const prioridad = p.severidad === 'Crítica' || p.severidad === 'Severa'
         ? 'Alta'
         : p.severidad === 'Moderada' ? 'Media' : 'Baja';
-      const actividad = `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`.trim();
+      const actividad = `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()}`.trim();
       return { estado, prioridad, actividad };
     };
     const normalizeFingerprintPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase();
@@ -921,7 +920,7 @@ export function FichaForm({
         <p className="mb-3 text-xs text-slate-600 print:hidden">
           La detección propone elementos con estado Regular, Malo o Crítico, o con observaciones informativas.
           La cantidad y unidad se precargan desde el inventario como referencia editable; confirme o ajuste la cantidad realmente afectada.
-          La transferencia no confirma una patología: daño, ubicación y severidad deben verificarse.
+          La transferencia no confirma una patología: el daño y la severidad deben verificarse. La ubicación se documenta mediante fotografías del sector afectado.
         </p>
         {showPathologyTransfer && (
           <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 print:hidden">
@@ -1015,14 +1014,14 @@ export function FichaForm({
           onChange={handlePatTableChange}
           fixedLayout
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '11%' },
-            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '13%' },
-            { key: 'ubicacion', label: 'Ubicación', type: 'text', dataListId: 'list-pat-ubic', width: '9%' },
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '12%' },
+            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '15%' },
+            
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '8%' },
             { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '7%' },
             { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '11%' },
-            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '15%' },
-            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '18%', displayOnly: true },
+            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '16%' },
+            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '23%', displayOnly: true },
           ]}
         />
       </div>
