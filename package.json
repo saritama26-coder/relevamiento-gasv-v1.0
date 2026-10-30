@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/services/storage.test.ts src/constants/roomTemplates.test.ts src/utils/roomCode.test.ts src/utils/pathologyTransfer.test.ts src/utils/projectVerification.test.ts"
+    "test": "tsx --test src/services/storage.test.ts src/constants/roomTemplates.test.ts src/utils/roomCode.test.ts src/utils/pathologyTransfer.test.ts src/utils/projectVerification.test.ts src/utils/excelExport.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
