@@ -63,6 +63,7 @@ import {
   sanitizeFilename,
   formatTimestamp,
   nextConsecutive,
+  suggestNextAvailableCode,
   getProjectVerificationChecklist,
 } from './utils/helpers';
 
@@ -699,7 +700,14 @@ export default function App() {
       const ok = confirm('¿Crear un ambiente nuevo? Asegúrese de haber guardado sus cambios.');
       if (!ok) return;
     }
-    loadFicha(createEmptyFicha());
+    const recentCode = [...fichas]
+      .sort((left, right) => Date.parse(right.updatedAt || '') - Date.parse(left.updatedAt || ''))
+      .find((ficha) => String(ficha.codigo || '').trim())?.codigo || '';
+    const referenceCode = String(activeFicha.codigo || '').trim() || recentCode;
+    const suggestedCode = suggestNextAvailableCode(referenceCode, fichas);
+    const newFicha = createEmptyFicha();
+    if (suggestedCode) newFicha.codigo = suggestedCode;
+    loadFicha(newFicha);
   };
 
   const handleResetRelevamiento = async () => {
