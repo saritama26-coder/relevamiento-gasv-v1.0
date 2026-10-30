@@ -115,6 +115,17 @@ test('marca como informativo cuando no existe una partida de piso comparable', (
   assert.match(areaItem.findings[0].detail, /No se encontró una partida identificable de piso/);
 });
 
+test('marca como no evaluable un ambiente sin área dimensional válida', () => {
+  const ficha = makeFicha({ largo: '', ancho: '', cuan: [] });
+  const result = getProjectVerificationChecklist([ficha]);
+  const areaItem = result.items.find((item) => item.id === 'area-seccion8');
+
+  assert.ok(areaItem);
+  assert.equal(areaItem.status, 'info');
+  assert.match(areaItem.findings[0].detail, /No hay un área dimensional válida/);
+  assert.equal(result.hasPending, false);
+});
+
 test('reporta unidades no comparables en partidas identificadas como piso', () => {
   const ficha = makeFicha({
     cuan: [{
