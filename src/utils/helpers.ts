@@ -786,7 +786,19 @@ export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerific
 
   safeFichas.forEach((ficha) => {
     const area = calculateArea(ficha);
-    if (!(area > 0)) return;
+    if (!(area > 0)) {
+      areaNotEvaluatedCount++;
+      areaFindings.push(createVerificationFinding(
+        ficha,
+        'area-piso',
+        'sin-area',
+        'Sección 2 · Datos dimensionales',
+        'info',
+        'No hay un área dimensional válida registrada para contrastar con la cuantificación de piso.',
+        'Revise si el ambiente debe tener dimensiones registradas. Si su geometría es irregular, confirme el área directa de la Sección 2.',
+      ));
+      return;
+    }
 
     const floorRows = (Array.isArray(ficha.cuan) ? ficha.cuan : [])
       .map((row, index) => ({ row, index }))
