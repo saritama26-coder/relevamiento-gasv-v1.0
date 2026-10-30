@@ -325,7 +325,7 @@ export function ConsolidatedReport({
                 <div className="text-xl font-bold text-[#17365d] uppercase tracking-wide">
                   FICHA DE RELEVAMIENTO ARQUITECTÓNICO
                 </div>
-                <span className={'px-2 py-1 rounded text-[8pt] sm:text-[9pt] font-black tracking-wide uppercase border ' + verificationClass + ' print:border-black print:text-black'}>
+                <span className={'px-2 py-1 rounded text-[8pt] sm:text-[9pt] font-black tracking-wide uppercase border ' + verificationClass + ' print:hidden'}>
                   {verificationLabel}
                 </span>
               </div>
@@ -363,7 +363,7 @@ export function ConsolidatedReport({
           </div>
 
           {/* Control técnico automático del proyecto */}
-          <section className="mb-8 rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm print:shadow-none print:break-inside-auto">
+          <section className="mb-8 rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm print:hidden">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3 mb-4">
               <div>
                 <h2 className="text-xl font-bold text-[#17365d]">Control de revisión técnica del proyecto</h2>
