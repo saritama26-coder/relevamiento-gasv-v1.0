@@ -330,6 +330,23 @@ export function FichaForm({
     const transferidas = new Set(
       cuantificaciones.map((item) => String(item.origenPatologiaId || '')).filter(Boolean)
     );
+
+    const buildQuantification = (p: (typeof patologias)[number]) => {
+      const estado = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
+      const prioridad = p.severidad === 'Crítica' || p.severidad === 'Severa'
+        ? 'Alta'
+        : p.severidad === 'Moderada' ? 'Media' : 'Baja';
+      const actividad = `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`.trim();
+      return { estado, prioridad, actividad };
+    };
+    const normalizeFingerprintPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase();
+    const fingerprint = (row: {
+      codigo?: string; elemento?: string; actividad?: string; cantidad?: string;
+      unidad?: string; estado?: string; prioridad?: string;
+    }) => [
+      row.codigo, row.elemento, row.actividad, row.cantidad, row.unidad, row.estado, row.prioridad,
+    ].map(normalizeFingerprintPart).join('|');
+
     const diagnosticosCompletos = patologias.filter((p) => {
       const cantidad = Number(String(p.cantidad || '').replace(',', '.'));
       return Boolean(
@@ -351,7 +368,32 @@ export function FichaForm({
         Number(String(p.cantidad || '').replace(',', '.')) > 0
       )
     );
-    const nuevas = diagnosticosCompletos.filter((p) => !transferidas.has(String(p.id)));
+
+    // Vincula también las actividades creadas por versiones anteriores,
+    // que todavía no tenían origenPatologiaId, usando su contenido exacto.
+    const pathologyByFingerprint = new Map(
+      diagnosticosCompletos.map((p) => {
+        const details = buildQuantification(p);
+        return [fingerprint({
+          codigo: ficha.codigo,
+          elemento: p.elemento,
+          actividad: details.actividad,
+          cantidad: p.cantidad,
+          unidad: p.unidad,
+          estado: details.estado,
+          prioridad: details.prioridad,
+        }), p.id] as const;
+      })
+    );
+    const cuantificacionesVinculadas = cuantificaciones.map((item) => {
+      if (item.origenPatologiaId) return item;
+      const sourceId = pathologyByFingerprint.get(fingerprint(item));
+      return sourceId ? { ...item, origenPatologiaId: sourceId } : item;
+    });
+    const transferidasActualizadas = new Set(
+      cuantificacionesVinculadas.map((item) => String(item.origenPatologiaId || '')).filter(Boolean)
+    );
+    const nuevas = diagnosticosCompletos.filter((p) => !transferidasActualizadas.has(String(p.id)));
     const omitidasPorDuplicado = diagnosticosCompletos.length - nuevas.length;
 
     if (!nuevas.length) {
@@ -363,19 +405,22 @@ export function FichaForm({
       return;
     }
 
-    const filas = nuevas.map((p) => ({
-      id: Math.random().toString(),
-      codigo: ficha.codigo,
-      elemento: p.elemento,
-      actividad: `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`,
-      cantidad: p.cantidad,
-      unidad: p.unidad,
-      estado: p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular',
-      prioridad: p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja',
-      origenPatologiaId: p.id,
-    }));
+    const filas = nuevas.map((p) => {
+      const details = buildQuantification(p);
+      return {
+        id: Math.random().toString(),
+        codigo: ficha.codigo,
+        elemento: p.elemento,
+        actividad: details.actividad,
+        cantidad: p.cantidad,
+        unidad: p.unidad,
+        estado: details.estado,
+        prioridad: details.prioridad,
+        origenPatologiaId: p.id,
+      };
+    });
 
-    onChange({ cuan: [...cuantificaciones, ...filas] });
+    onChange({ cuan: [...cuantificacionesVinculadas, ...filas] });
     alert(
       `${filas.length} actividad(es) transferida(s) a la Sección 8.` +
       (omitidasPorDuplicado ? ` ${omitidasPorDuplicado} ya existían y no se duplicaron.` : '') +
