@@ -10,12 +10,16 @@ export interface ColumnDef {
   width?: string;
   options?: string[];
   dataListId?: string;
+  /** Muestra el valor como texto de solo lectura, permitiendo ajuste de línea. */
+  displayOnly?: boolean;
 }
 
 interface DataTableProps {
   columns: ColumnDef[];
   data: any[];
   onChange: (newData: any[]) => void;
+  /** Distribuye las columnas con anchos definidos para tablas de muchas columnas. */
+  fixedLayout?: boolean;
 }
 
 function isCustomValue(listas: Record<string, string[]>, listId: string, val: any): boolean {
@@ -182,7 +186,7 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
   );
 }
 
-export function DataTable({ columns, data, onChange }: DataTableProps) {
+export function DataTable({ columns, data, onChange, fixedLayout = false }: DataTableProps) {
   const { listas, agregar } = useCatalogos();
   const [activeCell, setActiveCell] = useState<string | null>(null);
 
@@ -333,7 +337,7 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                   const cellKey = `mob-${idx}|${col.key}`;
                   const isQty = col.key === 'cantidad';
                   const val = row[col.key] ?? '';
-                  const isFullWidth = col.key === 'descripcion' || col.key === 'observacion' || col.key === 'actividad' || col.key === 'elemento';
+                  const isFullWidth = col.displayOnly || col.key === 'descripcion' || col.key === 'observacion' || col.key === 'actividad' || col.key === 'elemento';
 
                   return (
                     <div
@@ -343,7 +347,14 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                       <label className="block text-[11px] font-semibold text-slate-500 mb-1">
                         {col.label}
                       </label>
-                      {col.type === 'select' ? (
+                      {col.displayOnly ? (
+                        <div
+                          className="w-full min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs leading-5 whitespace-normal break-words"
+                          title={String(val || '')}
+                        >
+                          {String(val || '—')}
+                        </div>
+                      ) : col.type === 'select' ? (
                         <select
                           className="w-full p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
                           value={val}
@@ -399,13 +410,13 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
 
       {/* Desktop / Print Table Layout (>= md or @media print) */}
       <div className="hidden md:block print:block overflow-x-auto">
-        <table className="w-full text-sm text-left border-collapse border border-gray-300 print:text-[10px]">
+        <table className={`w-full text-sm text-left border-collapse border border-gray-300 print:text-[10px] ${fixedLayout ? 'table-fixed' : ''}`}>
           <thead className="bg-slate-100 text-slate-800 text-xs uppercase font-semibold print:bg-gray-200">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-2 py-1.5 border border-gray-300"
+                  className="px-2 py-1.5 border border-gray-300 align-top break-words"
                   style={{ width: col.width }}
                 >
                   {col.label}
@@ -438,8 +449,18 @@ export function DataTable({ columns, data, onChange }: DataTableProps) {
                     }
 
                     return (
-                      <td key={col.key} className="p-1 border border-gray-300">
-                        {col.type === 'select' ? (
+                      <td
+                        key={col.key}
+                        className={`p-1 border border-gray-300 align-top ${col.displayOnly ? 'bg-slate-50/70' : ''}`}
+                      >
+                        {col.displayOnly ? (
+                          <div
+                            className="w-full min-w-0 px-1 py-1 text-xs leading-5 whitespace-normal break-words"
+                            title={String(val || '')}
+                          >
+                            {String(val || '—')}
+                          </div>
+                        ) : col.type === 'select' ? (
                           <select
                             className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
                             value={val}
