@@ -389,6 +389,23 @@ export function priorityFromState(estado: string): string {
   return 'Baja';
 }
 
+/**
+ * Asigna la prioridad directamente desde la severidad de la patología.
+ * Crítica/Severa = Alta; Moderada = Media; Leve = Baja.
+ */
+export function priorityFromSeverity(severidad: string): string {
+  const normalized = String(severidad || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\\u0300-\\u036f]/g, '');
+
+  if (normalized === 'critica' || normalized === 'severa') return 'Alta';
+  if (normalized === 'moderada') return 'Media';
+  if (normalized === 'leve') return 'Baja';
+  return 'Baja';
+}
+
 export function lookupReference(ficha: Ficha, elemento: string): { cantidad: string; unidad: string; origen: string } | null {
   const norm = String(elemento || '').trim().toLowerCase();
   if (!norm) return null;
