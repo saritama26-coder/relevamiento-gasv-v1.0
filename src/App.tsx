@@ -165,6 +165,7 @@ export default function App() {
     setActiveFicha((prev) => processActiveFichaStateUpdate(prev, patch));
   }, []);
   const [catalogos, setCatalogos] = useState<CatalogosMap>({});
+  const [storageReadError, setStorageReadError] = useState<string | null>(null);
 
   // UI States
   const [showDrawer, setShowDrawer] = useState(false);
@@ -295,12 +296,33 @@ export default function App() {
     };
   }, [exportDropdownOpen]);
 
-  // Load initial data
+  // Load all local data as one operation: a failed read must never look like an empty project.
   useEffect(() => {
-    StorageService.getProjectData().then(setProjectData);
-    StorageService.getFichas().then(setFichas);
-    StorageService.getCatalogos().then(setCatalogos);
-
+    let cancelled = false;
+    Promise.all([
+      StorageService.getProjectData(),
+      StorageService.getFichas(),
+      StorageService.getCatalogos(),
+    ])
+      .then(([project, storedFichas, storedCatalogos]) => {
+        if (cancelled) return;
+        setProjectData(project);
+        setFichas(storedFichas);
+        setCatalogos(storedCatalogos);
+        setStorageReadError(null);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('No se pudo inicializar el almacenamiento local:', error);
+        setStorageReadError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo leer la información local. No se han modificado los registros.'
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Trigger Google Drive auto-backup when fichas or project data are updated
@@ -361,6 +383,9 @@ export default function App() {
 
   // Manual backup trigger helper for modal
   const handleManualGDriveBackup = useCallback(async () => {
+    if (storageReadError) {
+      throw new Error('No se puede respaldar una sesión cuyo almacenamiento local no pudo leerse.');
+    }
     const token = await getAccessToken();
     if (!token) {
       const errMsg = 'Autoriza nuevamente Google Drive para crear el respaldo.';
@@ -393,7 +418,7 @@ export default function App() {
       notifyGoogleDriveBackupFailed(errMsg, true);
       throw err;
     }
-  }, [projectData, catalogos, fichas]);
+  }, [projectData, catalogos, fichas, storageReadError]);
 
   const handleToggleAutoBackup = useCallback(
     async (enabled: boolean) => {
@@ -420,6 +445,11 @@ export default function App() {
   useEffect(() => {
     if (isFirstMount.current) {
       isFirstMount.current = false;
+      return;
+    }
+    if (storageReadError) {
+      setHasUnsavedChanges(true);
+      setSaveStatus('Guardado suspendido: almacenamiento local no disponible');
       return;
     }
     if (!String(activeFicha.codigo || '').trim() || !String(activeFicha.ambiente || '').trim()) {
@@ -457,11 +487,17 @@ export default function App() {
         triggerGoogleDriveAutoBackup(updatedFichas, projectData, catalogos);
       } catch (err) {
         console.error('Error in autosave:', err);
+        setStorageReadError(
+          err instanceof Error
+            ? err.message
+            : 'Falló la lectura o escritura del almacenamiento local. No continúe modificando datos.'
+        );
+        setSaveStatus('Error de almacenamiento: guardado suspendido');
       }
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [activeFicha]);
+  }, [activeFicha, storageReadError]);
 
   // Warn on page unload if unsaved changes
   useEffect(() => {
@@ -540,6 +576,10 @@ export default function App() {
   };
 
   const handleAddCatalogos = async (items: { listId: string; valor: string }[]) => {
+    if (storageReadError) {
+      alert('No se pueden modificar los catálogos hasta recuperar la lectura del almacenamiento local.');
+      return;
+    }
     const updated = { ...catalogos };
     items.forEach(({ listId, valor }) => {
       const list = updated[listId] || [];
@@ -554,6 +594,10 @@ export default function App() {
   };
 
   const handleUpdateProjectData = (field: keyof ProjectData, val: string) => {
+    if (storageReadError) {
+      alert('No se pueden modificar los datos del proyecto hasta recuperar la lectura del almacenamiento local.');
+      return;
+    }
     const updated = { ...projectData, [field]: val };
     setProjectData(updated);
     void StorageService.saveProjectData(updated);
@@ -570,6 +614,10 @@ export default function App() {
   const isFormValid = Boolean(String(activeFicha.codigo || '').trim() && String(activeFicha.ambiente || '').trim());
 
   const handleManualSave = async () => {
+    if (storageReadError) {
+      alert('Guardado bloqueado: no se pudo confirmar la lectura de los registros existentes. Recargue la aplicación e inténtelo nuevamente.');
+      return;
+    }
     if (!String(activeFicha.codigo || '').trim() || !String(activeFicha.ambiente || '').trim()) {
       return;
     }
@@ -623,6 +671,10 @@ export default function App() {
   };
 
   const handleNuevoAmbiente = () => {
+    if (storageReadError) {
+      alert('No se puede iniciar otro ambiente hasta recuperar la lectura del almacenamiento local.');
+      return;
+    }
     if (activeFicha.codigo && activeFicha.ambiente && activeFicha.fotos.length === 0) {
       const okFotos = confirm(
         '⚠️ Alerta de Registro Fotográfico:\n\nEl ambiente actual no cuenta con fotografías registradas (objetivo sugerido: al menos 4 fotos).\n\n¿Deseas darlo por finalizado y crear un nuevo ambiente sin fotografías?'
@@ -643,6 +695,10 @@ export default function App() {
   };
 
   const handleResetRelevamiento = async () => {
+    if (storageReadError) {
+      alert('Restablecimiento bloqueado para proteger los registros existentes: primero debe recuperarse la lectura del almacenamiento local.');
+      return;
+    }
     const initialProject: ProjectData = {
       proyecto: '',
       ubicacion: '',
@@ -675,6 +731,10 @@ export default function App() {
   };
 
   const handleDeleteAmbiente = async (id: string) => {
+    if (storageReadError) {
+      alert('Eliminación bloqueada: no se pudo confirmar la lectura de los registros existentes.');
+      return;
+    }
     if (confirm('¿Eliminar definitivamente esta ficha?')) {
       await StorageService.deleteFicha(id);
       const updated = await StorageService.getFichas();
@@ -697,6 +757,10 @@ export default function App() {
   };
 
   const handleConfirmDuplicate = async () => {
+    if (storageReadError) {
+      alert('No se puede duplicar una ficha hasta recuperar la lectura del almacenamiento local.');
+      return;
+    }
     const target = fichas.find((f) => f.id === dupTargetId);
     if (!target) return;
 
@@ -793,6 +857,10 @@ export default function App() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    if (storageReadError) {
+      alert('Importación bloqueada para evitar reemplazar datos mientras el almacenamiento local no pueda leerse. Recargue e inténtelo nuevamente.');
+      return;
+    }
 
     try {
       const parsed = await parseProjectBackup(file);
@@ -884,6 +952,20 @@ export default function App() {
   return (
     <CatalogProvider personalizados={catalogos} agregar={handleAddCatalogos}>
       <div className="min-h-screen bg-gray-100 text-gray-900 font-sans pb-10">
+        {storageReadError && (
+          <div role="alert" className="mx-auto mt-3 max-w-7xl rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 print:hidden">
+            <p className="font-bold">Almacenamiento local no disponible</p>
+            <p className="mt-1">No se ha confirmado la lectura de las fichas y configuraciones. Las operaciones que puedan sobrescribir o eliminar información están bloqueadas.</p>
+            <p className="mt-1 break-words">{storageReadError}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-2 rounded bg-red-800 px-3 py-1.5 font-semibold text-white hover:bg-red-700"
+            >
+              Reintentar lectura
+            </button>
+          </div>
+        )}
         {/* Top Sticky Navigation Bar */}
         <header className="bg-[#17365d] text-white shadow-md print:hidden sticky top-0 z-50">
           {/* Fila superior para móvil (< lg) */}
@@ -1838,6 +1920,9 @@ export default function App() {
             projectData={projectData}
             catalogos={catalogos}
             onImportFichas={async (importedFichas, impProj, impCats) => {
+              if (storageReadError) {
+                throw new Error('Importación bloqueada: primero debe recuperarse la lectura del almacenamiento local.');
+              }
               const map = new Map<string, Ficha>();
               fichas.forEach((f) => map.set(f.id, f));
               importedFichas.forEach((f) => {
@@ -1886,6 +1971,9 @@ export default function App() {
             projectData={projectData}
             catalogos={catalogos}
             onRestoreBackup={async (newFichas, newProjectData, newCatalogos) => {
+              if (storageReadError) {
+                throw new Error('Restauración bloqueada para proteger los registros locales mientras el almacenamiento no pueda leerse.');
+              }
               await StorageService.replaceFichas(newFichas);
               const restoredFichas = await StorageService.getFichas();
               setFichas(restoredFichas);
