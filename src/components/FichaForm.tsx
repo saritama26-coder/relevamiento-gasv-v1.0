@@ -96,7 +96,8 @@ export function FichaForm({
 
     // Actualiza referencias de patologías vinculadas a los registros migrados.
     const migratedIds = new Set(movedRows.map((row) => String(row.id || '')));
-    const updatedPathologies = (Array.isArray(ficha.pat) ? ficha.pat : []).map((row) => {
+    const currentPathologies = Array.isArray(ficha.pat) ? ficha.pat : [];
+    const updatedPathologies = currentPathologies.map((row) => {
       const originKey = String(row.origenKey || '');
       const linkedId = originKey.startsWith('gasv:hidro:')
         ? originKey.slice('gasv:hidro:'.length)
@@ -112,7 +113,7 @@ export function FichaForm({
     onChange({
       equip: [...(Array.isArray(ficha.equip) ? ficha.equip : []), ...movedToEquipment],
       hidro: remainingHydro,
-      ...(updatedPathologies.some((row, index) => row !== ficha.pat[index])
+      ...(updatedPathologies.some((row, index) => row !== currentPathologies[index])
         ? { pat: updatedPathologies }
         : {}),
     });
