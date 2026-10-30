@@ -22,6 +22,8 @@ interface DataTableProps {
   fixedLayout?: boolean;
   /** Ancho reservado para los controles de fila en tablas con distribución fija. */
   actionWidth?: string;
+  /** Ancho mínimo de la celda de acciones cuando hay varios botones. */
+  actionMinWidth?: number;
 }
 
 function isCustomValue(listas: Record<string, string[]>, listId: string, val: any): boolean {
@@ -188,7 +190,7 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
   );
 }
 
-export function DataTable({ columns, data, onChange, fixedLayout = false, actionWidth }: DataTableProps) {
+export function DataTable({ columns, data, onChange, fixedLayout = false, actionWidth, actionMinWidth }: DataTableProps) {
   const { listas, agregar } = useCatalogos();
   const [activeCell, setActiveCell] = useState<string | null>(null);
 
@@ -426,7 +428,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
               ))}
               <th
                 className="px-2 py-1.5 border border-gray-300 print:hidden text-center whitespace-nowrap"
-                style={fixedLayout ? { width: actionWidth || '10%', minWidth: 124 } : undefined}
+                style={fixedLayout ? { width: actionWidth || '10%', minWidth: actionMinWidth || 124 } : undefined}
               >
                 Acciones
               </th>
@@ -457,6 +459,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                       <td
                         key={col.key}
                         className={`p-1 border border-gray-300 align-top ${col.displayOnly ? 'bg-slate-50/70' : ''}`}
+                        style={fixedLayout ? { width: col.width } : undefined}
                       >
                         {col.displayOnly ? (
                           <div
@@ -509,32 +512,32 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                   })}
                   <td
                     className="p-1 border border-gray-300 print:hidden text-center whitespace-nowrap"
-                    style={fixedLayout ? { width: actionWidth || '10%', minWidth: 124 } : undefined}
+                    style={fixedLayout ? { width: actionWidth || '10%', minWidth: actionMinWidth || 124 } : undefined}
                   >
-                    <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                    <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
                     <button
                       type="button"
                       onClick={() => handleMove(idx, -1)}
-                      className="p-1 text-slate-500 hover:bg-slate-200 rounded"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-200"
                       title="Subir"
                     >
-                      <ChevronUp size={14} />
+                      <ChevronUp size={16} />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleMove(idx, 1)}
-                      className="p-1 text-slate-500 hover:bg-slate-200 rounded"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-200"
                       title="Bajar"
                     >
-                      <ChevronDown size={14} />
+                      <ChevronDown size={16} />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDuplicate(idx)}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-blue-600 hover:bg-blue-50"
                       title="Duplicar fila"
                     >
-                      <Copy size={14} />
+                      <Copy size={16} />
                     </button>
                     {customTokens.length > 0 && (
                       <button
@@ -543,19 +546,19 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                           agregar(customTokens);
                           alert('Guardado en el catálogo: ' + customTokens.map((t) => t.valor).join(', '));
                         }}
-                        className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-emerald-600 hover:bg-emerald-50"
                         title={'Guardar en el catálogo: ' + customTokens.map((t) => t.valor).join(', ')}
                       >
-                        <BookmarkPlus size={14} />
+                        <BookmarkPlus size={16} />
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => handleDelete(idx)}
-                      className="p-1 text-red-500 hover:bg-red-50 rounded"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-red-500 hover:bg-red-50"
                       title="Eliminar"
                     >
-                      <Trash size={14} />
+                      <Trash size={16} />
                     </button>
                     </div>
                   </td>
