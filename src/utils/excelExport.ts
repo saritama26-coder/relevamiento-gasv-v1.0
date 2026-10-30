@@ -49,7 +49,6 @@ function styleTitle(sheet: ExcelJS.Worksheet, lastColumn: number, title: string,
   sheet.getRow(3).height = 8;
   sheet.views = [{ state: 'frozen', ySplit: 4, activeCell: 'A5' }];
   sheet.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
-  sheet.pageMargins = { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
 }
 
 function addDataSheet(
@@ -316,8 +315,8 @@ export function createProjectExcelWorkbook(
   embeddedPhotos.forEach(({ row, imageId }) => {
     photoSheet.getRow(row + 1).height = 86;
     photoSheet.addImage(imageId, {
-      tl: { col: 7, row },
-      br: { col: 8, row: row + 1 },
+      tl: { col: 7, row } as any,
+      br: { col: 8, row: row + 1 } as any,
       editAs: 'oneCell',
     });
   });
