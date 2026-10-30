@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
-import { Printer, X, FileText, Layers, Check } from 'lucide-react';
+import { Printer, X, FileText, Layers, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
 import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist } from '../utils/helpers';
 import { GSARITAMA_HEADER_LOGO } from '../constants/logoData';
@@ -9,6 +9,7 @@ interface ConsolidatedReportProps {
   fichas: Ficha[];
   projectData: ProjectData;
   onClose: () => void;
+  onOpenFicha?: (fichaId: string) => void;
   initialViewMode?: 'all' | 'summary';
 }
 
@@ -16,6 +17,7 @@ export function ConsolidatedReport({
   fichas,
   projectData,
   onClose,
+  onOpenFicha,
   initialViewMode = 'all',
 }: ConsolidatedReportProps) {
   // Estado para alternar entre ver todo o únicamente el resumen consolidado
@@ -179,6 +181,35 @@ export function ConsolidatedReport({
   }, [sortedFichas]);
 
   const isSummaryOnlyMode = isExportingSummary || viewFilter === 'summary';
+  const verificationLabel = checklist.reviewedCount === 0
+    ? 'SIN FICHAS PARA VERIFICAR'
+    : checklist.hasPending
+      ? 'CONTROLES CON OBSERVACIONES'
+      : checklist.informationCount > 0
+        ? 'SIN ALERTAS · HAY DATOS NO EVALUABLES'
+        : 'CONTROLES SIN OBSERVACIONES';
+  const verificationClass = checklist.hasPending
+    ? 'border-amber-600 bg-amber-50 text-amber-900'
+    : checklist.informationCount > 0 || checklist.reviewedCount === 0
+      ? 'border-sky-600 bg-sky-50 text-sky-900'
+      : 'border-emerald-600 bg-emerald-50 text-emerald-900';
+  const verificationStatusLabel = (status: string) => ({
+    ok: 'Correcto',
+    info: 'No evaluable',
+    warning: 'Advertencia',
+    error: 'Dato requerido',
+  }[status] || 'Revisión');
+  const verificationStatusClass = (status: string) => ({
+    ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    info: 'border-sky-200 bg-sky-50 text-sky-800',
+    warning: 'border-amber-200 bg-amber-50 text-amber-900',
+    error: 'border-rose-200 bg-rose-50 text-rose-800',
+  }[status] || 'border-slate-200 bg-slate-50 text-slate-700');
+  const findingSeverityClass = (severity: string) => ({
+    info: 'border-sky-200 bg-sky-50 text-sky-800',
+    warning: 'border-amber-200 bg-amber-50 text-amber-900',
+    error: 'border-rose-200 bg-rose-50 text-rose-800',
+  }[severity] || 'border-slate-200 bg-slate-50 text-slate-700');
 
   return (
     <div className="min-h-screen bg-white">
@@ -294,11 +325,9 @@ export function ConsolidatedReport({
                 <div className="text-xl font-bold text-[#17365d] uppercase tracking-wide">
                   FICHA DE RELEVAMIENTO ARQUITECTÓNICO
                 </div>
-                {checklist.hasPending && (
-                  <span className="px-2 py-0.5 rounded text-[10pt] font-black tracking-wider uppercase border-2 border-amber-600 bg-amber-50 text-amber-900 print:border-black print:text-black">
-                    POR VERIFICAR
-                  </span>
-                )}
+                <span className={'px-2 py-1 rounded text-[8pt] sm:text-[9pt] font-black tracking-wide uppercase border ' + verificationClass + ' print:border-black print:text-black'}>
+                  {verificationLabel}
+                </span>
               </div>
             </div>
           </div>
@@ -332,6 +361,95 @@ export function ConsolidatedReport({
               <span className="font-medium">{new Date().toLocaleDateString('es-EC')}</span>
             </div>
           </div>
+
+          {/* Control técnico automático del proyecto */}
+          <section className="mb-8 rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm print:shadow-none print:break-inside-auto">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3 mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-[#17365d]">Control de revisión técnica del proyecto</h2>
+                <p className="mt-1 text-xs text-slate-600">
+                  Revisión automática de identificación, superficies comparables, estados y registro fotográfico.
+                </p>
+              </div>
+              <span className={'inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ' + verificationClass}>
+                {verificationLabel}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-2xl font-bold tabular-nums text-slate-900">{checklist.reviewedCount}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Fichas revisadas</div>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="text-2xl font-bold tabular-nums text-amber-900">{checklist.affectedFichaCount}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Fichas con observaciones</div>
+              </div>
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
+                <div className="text-2xl font-bold tabular-nums text-rose-900">{checklist.errorCount}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Datos requeridos</div>
+              </div>
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
+                <div className="text-2xl font-bold tabular-nums text-sky-900">{checklist.informationCount}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-800">Datos no evaluables</div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {checklist.items.map((item) => (
+                <div key={item.id} className="rounded-lg border border-slate-200 p-3 sm:p-4 print:break-inside-avoid">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-800">{item.title}</h3>
+                    <span className={'rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ' + verificationStatusClass(item.status) + ' print:border-black print:text-black'}>
+                      {verificationStatusLabel(item.status)} · {item.count}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">{item.detail}</p>
+
+                  {item.findings.length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      {item.findings.map((finding) => (
+                        <div key={finding.id} className="rounded-md border border-slate-200 bg-slate-50/70 p-3 print:break-inside-avoid">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs font-bold text-slate-800">
+                              {finding.codigo} · {finding.ambiente}
+                            </div>
+                            <span className={'rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ' + findingSeverityClass(finding.severity) + ' print:border-black print:text-black'}>
+                              {finding.severity === 'error' ? 'Dato requerido' : finding.severity === 'warning' ? 'Advertencia' : 'Informativo'}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-[11px] font-semibold text-slate-500">{finding.section}</div>
+                          <p className="mt-1 text-xs leading-5 text-slate-800">{finding.detail}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-600">
+                            <strong>Acción recomendada:</strong> {finding.action}
+                          </p>
+                          {onOpenFicha && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenFicha(finding.fichaId)}
+                              className="mt-2 inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 print:hidden"
+                            >
+                              Abrir ficha
+                              <ExternalLink size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-2 text-xs font-medium text-emerald-700">
+                      <CheckCircle2 size={14} />
+                      Sin observaciones detectadas en este control.
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 border-t border-slate-200 pt-3 text-[11px] leading-5 text-slate-500">
+              Este control es una ayuda automática de revisión. Los resultados deben contrastarse con la inspección y el criterio profesional; la aplicación no corrige ni modifica datos por sí sola.
+            </div>
+          </section>
 
           {/* Summary Table */}
           <h2 className="text-xl font-bold text-[#17365d] mb-4">Resumen General de Ambientes</h2>
