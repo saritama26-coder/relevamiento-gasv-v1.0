@@ -281,8 +281,8 @@ export function ConsolidatedReport({
       <div className="p-4 sm:p-8 max-w-5xl mx-auto text-slate-800">
         <div className={isSummaryOnlyMode ? 'mb-8' : 'print-page-break'}>
           {/* Header */}
-          <div className="flex items-end justify-between border-b-2 border-slate-800 pb-3 mb-6">
-            <div className="flex items-center space-x-3">
+          <div className="flex items-center border-b-2 border-slate-800 pb-3 mb-6">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="report-logo-plate flex h-[54px] w-[220px] shrink-0 items-center justify-center overflow-visible">
                 <img
                   src={GSARITAMA_HEADER_LOGO}
@@ -290,7 +290,7 @@ export function ConsolidatedReport({
                   className="report-document-logo h-full w-full shrink-0 object-contain object-center block"
                 />
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="text-xl font-bold text-[#17365d] uppercase tracking-wide">
                   FICHA DE RELEVAMIENTO ARQUITECTÓNICO
                 </div>
@@ -299,15 +299,6 @@ export function ConsolidatedReport({
                     POR VERIFICAR
                   </span>
                 )}
-              </div>
-            </div>
-            <div className="text-right text-sm leading-tight text-slate-700">
-              <div className="font-bold text-slate-900 text-base">
-                {projectData.profesional || 'Arq. Gabriel Saritama Veira'}
-              </div>
-              <div className="text-slate-600 font-medium">Arquitecto</div>
-              <div className="text-xs text-slate-500 font-mono mt-0.5">
-                {projectData.contacto || 'saritama26@gmail.com'}
               </div>
             </div>
           </div>
@@ -421,11 +412,7 @@ export function ConsolidatedReport({
           )}
 
           {/* Cierre institucional del resumen consolidado */}
-          <div className="mt-8 pt-4 border-t-2 border-slate-200 flex flex-wrap justify-between items-center text-xs text-slate-600 gap-2">
-            <div>
-              <span className="font-bold text-slate-800">Profesional a cargo:</span>{' '}
-              <span>{projectData.profesional || 'Arq. Gabriel Saritama Veira'}</span>
-            </div>
+          <div className="mt-8 pt-4 border-t-2 border-slate-200 flex justify-end items-center text-xs text-slate-500">
             <div className="font-mono text-[11px] text-slate-500">
               Documento consolidado • Relevamiento Arquitectónico GASV
             </div>
