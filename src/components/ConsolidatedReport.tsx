@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import { Printer, X, FileText, Layers, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
-import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist } from '../utils/helpers';
+import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist, type ProjectVerificationStatus, type ProjectVerificationSeverity } from '../utils/helpers';
 import { GSARITAMA_HEADER_LOGO } from '../constants/logoData';
 import { normalizePathologySourceReference } from '../utils/pathologyTransfer';
 
@@ -193,19 +193,19 @@ export function ConsolidatedReport({
     : checklist.informationCount > 0 || checklist.reviewedCount === 0
       ? 'border-sky-600 bg-sky-50 text-sky-900'
       : 'border-emerald-600 bg-emerald-50 text-emerald-900';
-  const verificationStatusLabel = (status: string) => ({
+  const verificationStatusLabel = (status: ProjectVerificationStatus) => ({
     ok: 'Correcto',
     info: 'No evaluable',
     warning: 'Advertencia',
     error: 'Dato requerido',
   }[status] || 'Revisión');
-  const verificationStatusClass = (status: string) => ({
+  const verificationStatusClass = (status: ProjectVerificationStatus) => ({
     ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
     info: 'border-sky-200 bg-sky-50 text-sky-800',
     warning: 'border-amber-200 bg-amber-50 text-amber-900',
     error: 'border-rose-200 bg-rose-50 text-rose-800',
   }[status] || 'border-slate-200 bg-slate-50 text-slate-700');
-  const findingSeverityClass = (severity: string) => ({
+  const findingSeverityClass = (severity: ProjectVerificationSeverity) => ({
     info: 'border-sky-200 bg-sky-50 text-sky-800',
     warning: 'border-amber-200 bg-amber-50 text-amber-900',
     error: 'border-rose-200 bg-rose-50 text-rose-800',
