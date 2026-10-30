@@ -116,7 +116,7 @@ test('marca como informativo cuando no existe una partida de piso comparable', (
 });
 
 test('marca como no evaluable un ambiente sin área dimensional válida', () => {
-  const ficha = makeFicha({ largo: '', ancho: '', cuan: [] });
+  const ficha = makeFicha({ largo: '', ancho: '' });
   const result = getProjectVerificationChecklist([ficha]);
   const areaItem = result.items.find((item) => item.id === 'area-seccion8');
 
