@@ -14,6 +14,8 @@ export interface ColumnDef {
   displayOnly?: boolean;
   /** Presentación compacta de referencias internas a secciones del inventario. */
   displayKind?: 'sourceReference';
+  /** Opciones que no deben ofrecerse ni aceptarse en esta columna. */
+  excludeOptions?: string[];
 }
 
 interface DataTableProps {
@@ -234,6 +236,16 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
   };
 
   const handleUpdate = (idx: number, key: string, value: any) => {
+    const column = columns.find((item) => item.key === key);
+    const normalizedValue = String(value ?? '').trim().normalize('NFD')
+      .replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+    const isExcluded = column?.excludeOptions?.some((item) =>
+      item.trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase() === normalizedValue
+    );
+    if (isExcluded) {
+      alert('Este aparato se registra en la Sección 4. En la Sección 6 registre únicamente sus conexiones e instalaciones.');
+      return;
+    }
     const copy = [...data];
     let updatedRow = { ...copy[idx], [key]: value };
 
@@ -441,7 +453,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                       ) : col.dataListId ? (
                         <CatalogInput
                           value={String(val)}
-                          options={listas[col.dataListId] || []}
+                          options={(listas[col.dataListId] || []).filter((option) => !col.excludeOptions?.some((excluded) => excluded.trim().toLowerCase() === option.trim().toLowerCase()))}
                           onChange={(nextValue) => handleUpdate(idx, col.key, nextValue)}
                           className="w-full min-w-0 p-2 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg text-xs"
                         />
@@ -480,14 +492,14 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
       </div>
 
       {/* Desktop / Print Table Layout (>= md or @media print) */}
-      <div className="hidden md:block print:block overflow-x-auto">
-        <table className={`w-full text-sm text-left border-collapse border border-gray-300 print:text-[10px] ${fixedLayout ? 'table-fixed' : ''}`}>
+      <div className="hidden md:block print:block w-full min-w-0 overflow-x-hidden">
+        <table className={`w-full min-w-0 text-sm text-left border-collapse border border-gray-300 print:text-[10px] ${fixedLayout ? 'table-fixed' : ''}`}>
           <thead className="bg-slate-100 text-slate-800 text-xs uppercase font-semibold print:bg-gray-200">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-2 py-1.5 border border-gray-300 align-top break-words"
+                  className="min-w-0 px-2 py-1.5 border border-gray-300 align-top break-words"
                   style={{ width: col.width }}
                 >
                   {col.label}
@@ -495,7 +507,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
               ))}
               <th
                 className="px-2 py-1.5 border border-gray-300 print:hidden text-center whitespace-nowrap"
-                style={fixedLayout ? { width: actionWidth || '10%', minWidth: actionMinWidth || 124 } : undefined}
+                style={fixedLayout ? { width: actionWidth || '10%', minWidth: actionMinWidth || 48 } : undefined}
               >
                 Acciones
               </th>
@@ -525,7 +537,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                     return (
                       <td
                         key={col.key}
-                        className={`p-1 border border-gray-300 align-top ${col.displayOnly ? 'bg-slate-50/70' : ''}`}
+                        className={`min-w-0 overflow-hidden p-1 border border-gray-300 align-top ${col.displayOnly ? 'bg-slate-50/70' : ''}`}
                         style={fixedLayout ? { width: col.width } : undefined}
                       >
                         {col.displayOnly ? (
@@ -551,7 +563,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                           )
                         ) : col.type === 'select' ? (
                           <select
-                            className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
+                            className="w-full min-w-0 max-w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
                             value={val}
                             onChange={(e) => handleUpdate(idx, col.key, e.target.value)}
                           >
@@ -573,7 +585,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                           <input
                             type={col.type}
                             step={isQty ? '0.01' : undefined}
-                            className="w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
+                            className="w-full min-w-0 max-w-full p-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-sm print:text-[10px]"
                             value={displayVal}
                             onFocus={() => setActiveCell(cellKey)}
                             onBlur={() => {
@@ -592,8 +604,8 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                     );
                   })}
                   <td
-                    className="p-1 border border-gray-300 print:hidden text-center whitespace-nowrap"
-                    style={fixedLayout ? { width: actionWidth || '10%', minWidth: actionMinWidth || 124 } : undefined}
+                    className="min-w-0 overflow-hidden p-1 border border-gray-300 print:hidden text-center whitespace-nowrap"
+                    style={fixedLayout ? { width: actionWidth || '10%', minWidth: actionMinWidth || 48 } : undefined}
                   >
                     {actionMenu ? (
                       <button
