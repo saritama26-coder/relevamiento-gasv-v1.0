@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronUp, ChevronDown, BookmarkPlus, Trash, Copy } from 'lucide-react';
+import { ChevronUp, ChevronDown, BookmarkPlus, Trash, Copy, MoreVertical } from 'lucide-react';
 import { useCatalogos } from '../context/CatalogContext';
 
 export interface ColumnDef {
@@ -24,6 +24,8 @@ interface DataTableProps {
   actionWidth?: string;
   /** Ancho mínimo de la celda de acciones cuando hay varios botones. */
   actionMinWidth?: number;
+  /** Sustituye los iconos visibles por un menú contextual compacto. */
+  actionMenu?: boolean;
 }
 
 function isCustomValue(listas: Record<string, string[]>, listId: string, val: any): boolean {
@@ -190,9 +192,10 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
   );
 }
 
-export function DataTable({ columns, data, onChange, fixedLayout = false, actionWidth, actionMinWidth }: DataTableProps) {
+export function DataTable({ columns, data, onChange, fixedLayout = false, actionWidth, actionMinWidth, actionMenu = false }: DataTableProps) {
   const { listas, agregar } = useCatalogos();
   const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [openActionMenu, setOpenActionMenu] = useState<{ rowIndex: number; top: number; left: number } | null>(null);
 
   const getCustomTokens = (row: any) => {
     return columns
@@ -272,6 +275,34 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
     onChange(copy);
   };
 
+  const showRowActions = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    rowIndex: number,
+    hasCatalogActions: boolean,
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 208;
+    const menuHeight = hasCatalogActions ? 210 : 176;
+    const showAbove = window.innerHeight - rect.bottom < menuHeight + 12 && rect.top > menuHeight + 12;
+    const top = showAbove
+      ? Math.max(8, rect.top - menuHeight - 6)
+      : Math.min(rect.bottom + 6, Math.max(8, window.innerHeight - menuHeight - 8));
+    const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+    setOpenActionMenu({ rowIndex, top, left });
+  };
+
+  useEffect(() => {
+    if (!openActionMenu) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenActionMenu(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [openActionMenu]);
+
+  const actionMenuRow = openActionMenu ? data[openActionMenu.rowIndex] : null;
+  const actionMenuTokens = actionMenuRow ? getCustomTokens(actionMenuRow) : [];
+
   return (
     <div className="space-y-3">
       {/* Mobile Card Layout (< md screens) */}
@@ -288,51 +319,69 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                   Fila #{idx + 1}
                 </span>
                 <div className="flex items-center space-x-1">
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, -1)}
-                    className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md active:bg-slate-200"
-                    title="Subir"
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, 1)}
-                    className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md active:bg-slate-200"
-                    title="Bajar"
-                  >
-                    <ChevronDown size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDuplicate(idx)}
-                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md active:bg-blue-100"
-                    title="Duplicar fila"
-                  >
-                    <Copy size={16} />
-                  </button>
-                  {customTokens.length > 0 && (
+                  {actionMenu ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        agregar(customTokens);
-                        alert('Guardado en el catálogo: ' + customTokens.map((t) => t.valor).join(', '));
-                      }}
-                      className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md active:bg-emerald-100"
-                      title={'Guardar en el catálogo: ' + customTokens.map((t) => t.valor).join(', ')}
+                      aria-label={`Acciones de la fila ${idx + 1}`}
+                      aria-haspopup="menu"
+                      aria-expanded={openActionMenu?.rowIndex === idx}
+                      onClick={(event) => openActionMenu?.rowIndex === idx
+                        ? setOpenActionMenu(null)
+                        : showRowActions(event, idx, customTokens.length > 0)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      title="Ver acciones"
                     >
-                      <BookmarkPlus size={16} />
+                      <MoreVertical size={18} />
                     </button>
+                  ) : (
+                    <>
+                    <button
+                      type="button"
+                      onClick={() => handleMove(idx, -1)}
+                      className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md active:bg-slate-200"
+                      title="Subir"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMove(idx, 1)}
+                      className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md active:bg-slate-200"
+                      title="Bajar"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicate(idx)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md active:bg-blue-100"
+                      title="Duplicar fila"
+                    >
+                      <Copy size={16} />
+                    </button>
+                    {customTokens.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          agregar(customTokens);
+                          alert('Guardado en el catálogo: ' + customTokens.map((t) => t.valor).join(', '));
+                        }}
+                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md active:bg-emerald-100"
+                        title={'Guardar en el catálogo: ' + customTokens.map((t) => t.valor).join(', ')}
+                      >
+                        <BookmarkPlus size={16} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(idx)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-md active:bg-red-100"
+                      title="Eliminar"
+                    >
+                      <Trash size={16} />
+                    </button>
+                    </>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(idx)}
-                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-md active:bg-red-100"
-                    title="Eliminar"
-                  >
-                    <Trash size={16} />
-                  </button>
                 </div>
               </div>
 
@@ -514,6 +563,21 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                     className="p-1 border border-gray-300 print:hidden text-center whitespace-nowrap"
                     style={fixedLayout ? { width: actionWidth || '10%', minWidth: actionMinWidth || 124 } : undefined}
                   >
+                    {actionMenu ? (
+                      <button
+                        type="button"
+                        aria-label={`Acciones de la fila ${idx + 1}`}
+                        aria-haspopup="menu"
+                        aria-expanded={openActionMenu?.rowIndex === idx}
+                        onClick={(event) => openActionMenu?.rowIndex === idx
+                          ? setOpenActionMenu(null)
+                          : showRowActions(event, idx, customTokens.length > 0)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                        title="Ver acciones"
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                    ) : (
                     <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
                     <button
                       type="button"
@@ -561,6 +625,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                       <Trash size={16} />
                     </button>
                     </div>
+                    )}
                   </td>
                 </tr>
               );
@@ -575,6 +640,81 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
           </tbody>
         </table>
       </div>
+
+      {openActionMenu && actionMenuRow && typeof document !== 'undefined' && createPortal(
+        <>
+          <button
+            type="button"
+            aria-label="Cerrar menú de acciones"
+            className="fixed inset-0 z-[9998] cursor-default bg-transparent print:hidden"
+            onClick={() => setOpenActionMenu(null)}
+          />
+          <div
+            role="menu"
+            aria-label={`Acciones para la fila ${openActionMenu.rowIndex + 1}`}
+            style={{ position: 'fixed', top: openActionMenu.top, left: openActionMenu.left, width: 208, zIndex: 9999 }}
+            className="fixed overflow-hidden rounded-lg border border-slate-200 bg-white py-1.5 shadow-xl print:hidden"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              disabled={openActionMenu.rowIndex === 0}
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={() => { const rowIndex = openActionMenu.rowIndex; setOpenActionMenu(null); handleMove(rowIndex, -1); }}
+            >
+              <ChevronUp size={16} className="text-slate-500" />
+              Subir
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={openActionMenu.rowIndex === data.length - 1}
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={() => { const rowIndex = openActionMenu.rowIndex; setOpenActionMenu(null); handleMove(rowIndex, 1); }}
+            >
+              <ChevronDown size={16} className="text-slate-500" />
+              Bajar
+            </button>
+            <div className="my-1 border-t border-slate-100" />
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
+              onClick={() => { const rowIndex = openActionMenu.rowIndex; setOpenActionMenu(null); handleDuplicate(rowIndex); }}
+            >
+              <Copy size={16} className="text-blue-600" />
+              Duplicar fila
+            </button>
+            {actionMenuTokens.length > 0 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-slate-700 hover:bg-emerald-50"
+                onClick={() => {
+                  agregar(actionMenuTokens);
+                  alert('Guardado en el catálogo: ' + actionMenuTokens.map((token) => token.valor).join(', '));
+                  setOpenActionMenu(null);
+                }}
+              >
+                <BookmarkPlus size={16} className="text-emerald-600" />
+                Guardar en catálogo
+              </button>
+            )}
+            <div className="my-1 border-t border-slate-100" />
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+              onClick={() => { const rowIndex = openActionMenu.rowIndex; setOpenActionMenu(null); handleDelete(rowIndex); }}
+            >
+              <Trash size={16} />
+              Eliminar fila
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
 
       <button
         type="button"

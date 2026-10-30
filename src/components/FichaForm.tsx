@@ -833,7 +833,7 @@ export function FichaForm({
             { key: 'dimension', label: 'Dimensión', type: 'text' },
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '10%' },
             { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
-            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '15%' },
+            { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '17%' },
             { key: 'observacion', label: 'Observación', type: 'text' },
           ]}
         />
@@ -1016,17 +1016,18 @@ export function FichaForm({
           }))}
           onChange={handlePatTableChange}
           fixedLayout
-          actionWidth="14%"
-          actionMinWidth={172}
+          actionMenu
+          actionWidth="7%"
+          actionMinWidth={84}
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '15%' },
-            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '13%' },
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '18%' },
+            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '14%' },
             
             { key: 'cantidad', label: 'Cantidad afectada', type: 'number', width: '8%' },
             { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '6%' },
             { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '10%' },
-            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '12%' },
-            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '22%', displayOnly: true },
+            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '13%' },
+            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '24%', displayOnly: true },
           ]}
         />
       </div>
