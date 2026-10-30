@@ -674,132 +674,378 @@ export function getFichaValidationWarnings(ficha: Ficha): string[] {
   return warnings;
 }
 
+export type ProjectVerificationStatus = 'ok' | 'info' | 'warning' | 'error';
+export type ProjectVerificationSeverity = 'info' | 'warning' | 'error';
+
+export interface ProjectVerificationFinding {
+  id: string;
+  fichaId: string;
+  codigo: string;
+  ambiente: string;
+  controlId: string;
+  section: string;
+  severity: ProjectVerificationSeverity;
+  detail: string;
+  action: string;
+}
+
 export interface ProjectVerificationItem {
   id: string;
   title: string;
-  status: 'ok' | 'warning';
+  status: ProjectVerificationStatus;
   detail: string;
   count: number;
+  findings: ProjectVerificationFinding[];
 }
 
 export interface ProjectVerificationResult {
   hasPending: boolean;
   pendingCount: number;
+  warningCount: number;
+  errorCount: number;
+  informationCount: number;
+  affectedFichaCount: number;
+  reviewedCount: number;
   items: ProjectVerificationItem[];
 }
 
+function normalizeVerificationText(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase();
+}
+
+function parseVerificationNumber(value: unknown): number | null {
+  const text = String(value ?? '').trim().replace(/\s/g, '').replace(',', '.');
+  if (!text) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
+function isSquareMetreUnit(value: unknown): boolean {
+  const unit = normalizeVerificationText(value).replace(/\s/g, '');
+  return unit === 'm2' || unit === 'm²';
+}
+
+function isFloorQuantification(item: Ficha['cuan'][number]): boolean {
+  const description = normalizeVerificationText((item.elemento || '') + ' ' + (item.actividad || ''));
+  return ['piso', 'pavimento', 'solado'].some((term) => description.includes(term));
+}
+
+function createVerificationFinding(
+  ficha: Ficha,
+  controlId: string,
+  suffix: string,
+  section: string,
+  severity: ProjectVerificationSeverity,
+  detail: string,
+  action: string,
+): ProjectVerificationFinding {
+  return {
+    id: (ficha.id || ficha.codigo || 'ficha') + '-' + controlId + '-' + suffix,
+    fichaId: ficha.id,
+    codigo: String(ficha.codigo || '').trim() || 'Sin código',
+    ambiente: String(ficha.ambiente || '').trim() || 'Sin nombre de ambiente',
+    controlId,
+    section,
+    severity,
+    detail,
+    action,
+  };
+}
+
+function statusFromFindings(findings: ProjectVerificationFinding[]): ProjectVerificationStatus {
+  if (findings.some((finding) => finding.severity === 'error')) return 'error';
+  if (findings.some((finding) => finding.severity === 'warning')) return 'warning';
+  if (findings.some((finding) => finding.severity === 'info')) return 'info';
+  return 'ok';
+}
+
 /**
- * PRIORIDAD 5: Lista de verificación antes de exportar
- * Verifica de forma global sobre las fichas:
- * 1. Total de la sección 8 igual a la suma de los ambientes.
- * 2. Estado del encabezado igual al del diagnóstico en cada ambiente.
- * 3. Fotos sin descripción.
- * 4. Ambientes sin cuantificación o marcados como incompletos.
+ * Ejecuta controles automáticos del proyecto sin modificar las fichas.
+ *
+ * 1. Compara el área dimensional con las partidas de piso cuantificadas en m².
+ *    No mezcla pintura de paredes, paredes u otras superficies con el área de piso.
+ * 2. Detecta diferencias entre estado dimensional y diagnóstico.
+ * 3. Identifica fotografías sin descripción.
+ * 4. Identifica fichas sin código, ambiente o cuantificación preliminar utilizable.
+ *
+ * Los resultados son ayudas de revisión; no sustituyen la inspección ni la validación profesional.
  */
 export function getProjectVerificationChecklist(fichas: Ficha[]): ProjectVerificationResult {
+  const safeFichas = Array.isArray(fichas) ? fichas : [];
   const items: ProjectVerificationItem[] = [];
 
-  // 1. Total de la sección 8 igual a la suma de los ambientes
-  const totalAreaAmbientes = fichas.reduce((acc, f) => acc + calculateArea(f), 0);
-  let totalCuanSuperficie = 0;
-  let ambDiscrepantesCount = 0;
+  // 1. Área dimensional frente a partidas de piso en la Sección 8.
+  const areaFindings: ProjectVerificationFinding[] = [];
+  let areaEvaluatedCount = 0;
+  let areaNotEvaluatedCount = 0;
 
-  fichas.forEach((f) => {
-    const areaAmb = calculateArea(f);
-    const m2CuanAmb = (f.cuan || []).reduce((acc, item) => {
-      const u = (item.unidad || '').toLowerCase().trim();
-      if (u === 'm²' || u === 'm2') {
-        const q = parseFloat(String(item.cantidad || '0').replace(',', '.'));
-        return acc + (isNaN(q) ? 0 : q);
+  safeFichas.forEach((ficha) => {
+    const area = calculateArea(ficha);
+    if (!(area > 0)) {
+      areaNotEvaluatedCount++;
+      areaFindings.push(createVerificationFinding(
+        ficha,
+        'area-piso',
+        'sin-area',
+        'Sección 2 · Datos dimensionales',
+        'info',
+        'No hay un área dimensional válida registrada para contrastar con la cuantificación de piso.',
+        'Revise si el ambiente debe tener dimensiones registradas. Si su geometría es irregular, confirme el área directa de la Sección 2.',
+      ));
+      return;
+    }
+
+    const floorRows = (Array.isArray(ficha.cuan) ? ficha.cuan : [])
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => isFloorQuantification(row));
+
+    if (floorRows.length === 0) {
+      areaNotEvaluatedCount++;
+      areaFindings.push(createVerificationFinding(
+        ficha,
+        'area-piso',
+        'sin-partida',
+        'Secciones 2 y 8',
+        'info',
+        'Área dimensional registrada: ' + area.toFixed(2) + ' m². No se encontró una partida identificable de piso en la Sección 8 para realizar el contraste.',
+        'Confirme si el piso forma parte del alcance de cuantificación. Si no corresponde, documente la exclusión; no se modifica ninguna cantidad.',
+      ));
+      return;
+    }
+
+    const usableRows: Array<{ quantity: number; index: number; element: string }> = [];
+    floorRows.forEach(({ row, index }) => {
+      const element = String(row.elemento || row.actividad || 'Partida de piso').trim();
+      if (!isSquareMetreUnit(row.unidad)) {
+        areaFindings.push(createVerificationFinding(
+          ficha,
+          'area-piso',
+          'unidad-' + (index + 1),
+          'Sección 8',
+          'warning',
+          'Fila #' + (index + 1) + ' (' + element + '): la unidad registrada es "' + String(row.unidad || 'sin unidad').trim() + '"; para comparar superficies debe verificarse si corresponde m².',
+          'Revise la unidad de la partida de piso en la Sección 8. La aplicación no la cambiará automáticamente.',
+        ));
+        return;
       }
-      return acc;
-    }, 0);
 
-    totalCuanSuperficie += m2CuanAmb;
-    // Si el ambiente tiene área definida pero no tiene cuantificaciones de superficie
-    if (areaAmb > 0 && Math.abs(areaAmb - m2CuanAmb) > 0.05 && (f.cuan || []).length > 0) {
-      ambDiscrepantesCount++;
+      const quantity = parseVerificationNumber(row.cantidad);
+      if (quantity === null || quantity <= 0) {
+        areaFindings.push(createVerificationFinding(
+          ficha,
+          'area-piso',
+          'cantidad-' + (index + 1),
+          'Sección 8',
+          'warning',
+          'Fila #' + (index + 1) + ' (' + element + '): la cantidad de piso no es un número positivo válido (' + String(row.cantidad || 'vacía') + ').',
+          'Revise la cantidad afectada de la partida de piso y confirme su valor en sitio.',
+        ));
+        return;
+      }
+
+      usableRows.push({ quantity, index, element });
+    });
+
+    if (usableRows.length === 0) {
+      areaNotEvaluatedCount++;
+      return;
+    }
+
+    areaEvaluatedCount++;
+    const floorTotal = usableRows.reduce((sum, row) => sum + row.quantity, 0);
+    const difference = Math.abs(area - floorTotal);
+    if (difference > 0.05) {
+      areaFindings.push(createVerificationFinding(
+        ficha,
+        'area-piso',
+        'diferencia',
+        'Secciones 2 y 8',
+        'warning',
+        'Área dimensional: ' + area.toFixed(2) + ' m². Cuantificación de piso: ' + floorTotal.toFixed(2) + ' m². Diferencia absoluta: ' + difference.toFixed(2) + ' m².',
+        'Compare las dimensiones de la Sección 2 con las cantidades de las partidas de piso de la Sección 8. Confirme si la diferencia corresponde a alcance, medición o registro.',
+      ));
     }
   });
 
-  const diffArea = Math.abs(totalAreaAmbientes - totalCuanSuperficie);
-  const areaMismatch = fichas.length > 0 && totalAreaAmbientes > 0 && diffArea > 0.5 && ambDiscrepantesCount > 0;
-
+  const areaWarnings = areaFindings.filter((finding) => finding.severity === 'warning').length;
   items.push({
     id: 'area-seccion8',
-    title: 'Total Sección 8 vs Suma de Ambientes',
-    status: areaMismatch ? 'warning' : 'ok',
-    count: areaMismatch ? ambDiscrepantesCount : 0,
-    detail: areaMismatch
-      ? `Superficie total de ambientes (${totalAreaAmbientes.toFixed(2)} m²) presenta diferencias con la cuantificación de acabados (${totalCuanSuperficie.toFixed(2)} m²) en ${ambDiscrepantesCount} ambiente(s).`
-      : `Superficie total de ambientes (${totalAreaAmbientes.toFixed(2)} m²) coherente con el relevamiento.`,
+    title: 'Área dimensional vs. partidas de piso (Secciones 2 y 8)',
+    status: statusFromFindings(areaFindings),
+    count: areaFindings.length,
+    detail: areaWarnings > 0
+      ? areaWarnings + ' observación(es) de superficie que requieren revisión.' + (areaNotEvaluatedCount ? ' Además, ' + areaNotEvaluatedCount + ' ambiente(s) no tuvieron una partida de piso comparable.' : '')
+      : areaEvaluatedCount > 0
+        ? areaEvaluatedCount + ' ambiente(s) comparados sin diferencias superiores a 0.05 m².' + (areaNotEvaluatedCount ? ' En ' + areaNotEvaluatedCount + ' ambiente(s) no se encontró una partida de piso comparable.' : '')
+        : 'No se encontraron partidas de piso comparables para verificar superficies.',
+    findings: areaFindings,
   });
 
-  // 2. Estado del encabezado igual al del diagnóstico en cada ambiente
-  const statusDiscrepancies: string[] = [];
-  fichas.forEach((f) => {
-    const estDim = (f.estadoDimensional || '').trim();
-    const diagEst = (f.diagestado || '').trim();
-    if (estDim && diagEst && estDim !== diagEst) {
-      statusDiscrepancies.push(`${f.codigo || 'S/C'} (${estDim} ≠ ${diagEst})`);
+  // 2. Coherencia entre el estado dimensional y el estado del diagnóstico.
+  const stateFindings: ProjectVerificationFinding[] = [];
+  safeFichas.forEach((ficha) => {
+    const dimensionalState = String(ficha.estadoDimensional || '').trim();
+    const diagnosticState = String(ficha.diagestado || '').trim();
+    if (
+      dimensionalState &&
+      diagnosticState &&
+      normalizeVerificationText(dimensionalState) !== normalizeVerificationText(diagnosticState)
+    ) {
+      stateFindings.push(createVerificationFinding(
+        ficha,
+        'estados',
+        'diferencia',
+        'Datos generales y diagnóstico',
+        'warning',
+        'Estado del encabezado: "' + dimensionalState + '". Estado del diagnóstico: "' + diagnosticState + '".',
+        'Revise ambos registros y unifique el estado que corresponda según la inspección. La aplicación conserva los dos valores hasta que se corrijan.',
+      ));
     }
   });
 
   items.push({
     id: 'estados-coherencia',
-    title: 'Coherencia de Estado (Encabezado vs Diagnóstico)',
-    status: statusDiscrepancies.length > 0 ? 'warning' : 'ok',
-    count: statusDiscrepancies.length,
-    detail: statusDiscrepancies.length > 0
-      ? `${statusDiscrepancies.length} ambiente(s) con estados diferentes: ${statusDiscrepancies.slice(0, 3).join(', ')}${statusDiscrepancies.length > 3 ? '...' : ''}.`
-      : 'Todos los ambientes tienen estados de encabezado y diagnóstico unificados.',
+    title: 'Coherencia del estado (encabezado vs. diagnóstico)',
+    status: statusFromFindings(stateFindings),
+    count: stateFindings.length,
+    detail: stateFindings.length
+      ? stateFindings.length + ' ambiente(s) presentan estados diferentes.'
+      : 'No se detectaron diferencias entre los estados registrados.',
+    findings: stateFindings,
   });
 
-  // 3. Fotos sin descripción
-  let fotosSinDesc = 0;
-  fichas.forEach((f) => {
-    (f.fotos || []).forEach((foto) => {
-      if (!foto.desc || !foto.desc.trim()) {
-        fotosSinDesc++;
+  // 3. Fotografías sin descripción técnica.
+  const photoFindings: ProjectVerificationFinding[] = [];
+  safeFichas.forEach((ficha) => {
+    (Array.isArray(ficha.fotos) ? ficha.fotos : []).forEach((photo, index) => {
+      if (!String(photo.desc || '').trim()) {
+        const photoLabel = String(photo.id || ('Foto ' + (index + 1))).trim();
+        photoFindings.push(createVerificationFinding(
+          ficha,
+          'fotos',
+          photoLabel + '-' + (index + 1),
+          'Sección 9 · Registro fotográfico',
+          'warning',
+          'Fotografía #' + (index + 1) + ' (' + photoLabel + ') sin descripción técnica.',
+          'Abra la ficha, ubique la fotografía indicada y registre una descripción breve del elemento, daño o condición documentada.',
+        ));
       }
     });
   });
 
   items.push({
     id: 'fotos-sin-desc',
-    title: 'Registro Fotográfico con Descripción',
-    status: fotosSinDesc > 0 ? 'warning' : 'ok',
-    count: fotosSinDesc,
-    detail: fotosSinDesc > 0
-      ? `Se encontraron ${fotosSinDesc} fotografía(s) sin descripción técnica registrada.`
+    title: 'Registro fotográfico con descripción (Sección 9)',
+    status: statusFromFindings(photoFindings),
+    count: photoFindings.length,
+    detail: photoFindings.length
+      ? photoFindings.length + ' fotografía(s) no tienen descripción técnica.'
       : 'Todas las fotografías registradas cuentan con descripción técnica.',
+    findings: photoFindings,
   });
 
-  // 4. Ambientes sin cuantificación o marcados como incompletos
-  const incompletos: string[] = [];
-  fichas.forEach((f) => {
-    const sinCuan = !f.cuan || f.cuan.length === 0;
-    const sinId = !f.codigo?.trim() || !f.ambiente?.trim();
-    if (sinCuan || sinId) {
-      incompletos.push(f.codigo || f.ambiente || 'S/C');
+  // 4. Identificación y cuantificación preliminar de cada ambiente.
+  const completionFindings: ProjectVerificationFinding[] = [];
+  safeFichas.forEach((ficha) => {
+    if (!String(ficha.codigo || '').trim()) {
+      completionFindings.push(createVerificationFinding(
+        ficha,
+        'completitud',
+        'codigo',
+        'Sección 1 · Datos generales',
+        'error',
+        'La ficha no tiene código de identificación.',
+        'Registre el código del ambiente en la Sección 1 para poder identificarlo en el proyecto y en el informe.',
+      ));
+    }
+
+    if (!String(ficha.ambiente || '').trim()) {
+      completionFindings.push(createVerificationFinding(
+        ficha,
+        'completitud',
+        'ambiente',
+        'Sección 1 · Datos generales',
+        'error',
+        'La ficha no tiene nombre de ambiente.',
+        'Registre el nombre del ambiente en la Sección 1.',
+      ));
+    }
+
+    const quantRows = Array.isArray(ficha.cuan) ? ficha.cuan : [];
+    const meaningfulRows = quantRows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => String(row.elemento || '').trim() || String(row.actividad || '').trim());
+
+    if (meaningfulRows.length === 0) {
+      completionFindings.push(createVerificationFinding(
+        ficha,
+        'completitud',
+        'cuantificacion',
+        'Sección 8 · Cuantificación preliminar',
+        'warning',
+        quantRows.length === 0
+          ? 'La ficha no contiene registros de cuantificación preliminar.'
+          : 'La ficha contiene filas, pero ninguna tiene elemento o trabajo a ejecutar registrado.',
+        'Revise si corresponde cuantificar trabajos para este ambiente. Si aplica, registre elemento, trabajo, cantidad y unidad en la Sección 8.',
+      ));
+      return;
+    }
+
+    const validQuantRows = meaningfulRows.filter(({ row }) => {
+      const quantity = parseVerificationNumber(row.cantidad);
+      return (
+        String(row.elemento || '').trim() &&
+        String(row.actividad || '').trim() &&
+        quantity !== null &&
+        quantity > 0 &&
+        String(row.unidad || '').trim()
+      );
+    });
+
+    if (validQuantRows.length === 0) {
+      completionFindings.push(createVerificationFinding(
+        ficha,
+        'completitud',
+        'cuantificacion-incompleta',
+        'Sección 8 · Cuantificación preliminar',
+        'error',
+        meaningfulRows.length + ' fila(s) con datos parciales, pero ninguna tiene elemento, trabajo, cantidad positiva y unidad completos.',
+        'Complete en cada partida aplicable el elemento, trabajo a ejecutar, cantidad y unidad. Confirme las mediciones antes de emitir el informe.',
+      ));
     }
   });
 
   items.push({
     id: 'ambientes-incompletos',
-    title: 'Cuantificación y Ambientes Completos',
-    status: incompletos.length > 0 ? 'warning' : 'ok',
-    count: incompletos.length,
-    detail: incompletos.length > 0
-      ? `${incompletos.length} ambiente(s) sin cuantificación preliminar o con datos faltantes (${incompletos.slice(0, 3).join(', ')}${incompletos.length > 3 ? '...' : ''}).`
-      : 'Todos los ambientes guardados cuentan con cuantificación preliminar e identificación.',
+    title: 'Identificación y cuantificación preliminar',
+    status: statusFromFindings(completionFindings),
+    count: completionFindings.length,
+    detail: completionFindings.length
+      ? completionFindings.length + ' observación(es) de identificación o cuantificación en las fichas.'
+      : 'Todas las fichas tienen código, nombre de ambiente y al menos una partida de cuantificación utilizable.',
+    findings: completionFindings,
   });
 
-  const pendingCount = items.filter((i) => i.status === 'warning').length;
+  const allFindings = items.flatMap((item) => item.findings);
+  const warningCount = allFindings.filter((finding) => finding.severity === 'warning').length;
+  const errorCount = allFindings.filter((finding) => finding.severity === 'error').length;
+  const informationCount = allFindings.filter((finding) => finding.severity === 'info').length;
+  const pendingFindings = allFindings.filter((finding) => finding.severity === 'warning' || finding.severity === 'error');
+  const affectedFichaCount = new Set(pendingFindings.map((finding) => finding.fichaId)).size;
 
   return {
-    hasPending: pendingCount > 0,
-    pendingCount,
+    hasPending: pendingFindings.length > 0,
+    pendingCount: pendingFindings.length,
+    warningCount,
+    errorCount,
+    informationCount,
+    affectedFichaCount,
+    reviewedCount: safeFichas.length,
     items,
   };
 }
