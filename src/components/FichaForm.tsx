@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Ficha, ProjectData, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from '../types';
 import { ROOM_TEMPLATES, applyRoomTemplate } from '../constants/roomTemplates';
+import { collectPathologyTransferCandidates, createPathologyRowsFromCandidates, type PathologyTransferCandidate } from '../utils/pathologyTransfer';
 import { DataTable } from './DataTable';
 import { useCatalogos } from '../context/CatalogContext';
 import {
@@ -59,6 +60,9 @@ export function FichaForm({
   const ambienteMissing = !String(ficha.ambiente || '').trim();
   const [observationVariant, setObservationVariant] = useState(0);
   const [selectedRoomTemplate, setSelectedRoomTemplate] = useState('');
+  const [showPathologyTransfer, setShowPathologyTransfer] = useState(false);
+  const [pathologyTransferCandidates, setPathologyTransferCandidates] = useState<PathologyTransferCandidate[]>([]);
+  const [selectedPathologySources, setSelectedPathologySources] = useState<string[]>([]);
 
   // Redacción técnica asistida, basada únicamente en los datos registrados en la ficha.
   // El código identificador se excluye deliberadamente del texto generado.
@@ -321,23 +325,103 @@ export function FichaForm({
   };
 
   const handlePasarSeccion8 = () => {
-    const cuanCopia = [...ficha.cuan];
-    ficha.pat.forEach((p) => {
-      if (p.elemento && p.patologia) {
-        cuanCopia.push({
-          id: Math.random().toString(),
+    const patologias = Array.isArray(ficha.pat) ? ficha.pat : [];
+    const cuantificaciones = Array.isArray(ficha.cuan) ? ficha.cuan : [];
+    const buildQuantification = (p: (typeof patologias)[number]) => {
+      const estado = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
+      const prioridad = p.severidad === 'Crítica' || p.severidad === 'Severa'
+        ? 'Alta'
+        : p.severidad === 'Moderada' ? 'Media' : 'Baja';
+      const actividad = `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`.trim();
+      return { estado, prioridad, actividad };
+    };
+    const normalizeFingerprintPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase();
+    const fingerprint = (row: {
+      codigo?: string; elemento?: string; actividad?: string; cantidad?: string;
+      unidad?: string; estado?: string; prioridad?: string;
+    }) => [
+      row.codigo, row.elemento, row.actividad, row.cantidad, row.unidad, row.estado, row.prioridad,
+    ].map(normalizeFingerprintPart).join('|');
+
+    const diagnosticosCompletos = patologias.filter((p) => {
+      const cantidad = Number(String(p.cantidad || '').replace(',', '.'));
+      return Boolean(
+        String(p.elemento || '').trim() &&
+        String(p.patologia || '').trim() &&
+        String(p.unidad || '').trim() &&
+        String(p.severidad || '').trim() &&
+        Number.isFinite(cantidad) &&
+        cantidad > 0
+      );
+    });
+    const pendientes = patologias.filter((p) =>
+      String(p.elemento || '').trim() &&
+      String(p.patologia || '').trim() &&
+      !(
+        String(p.unidad || '').trim() &&
+        String(p.severidad || '').trim() &&
+        Number.isFinite(Number(String(p.cantidad || '').replace(',', '.'))) &&
+        Number(String(p.cantidad || '').replace(',', '.')) > 0
+      )
+    );
+
+    // Vincula también las actividades creadas por versiones anteriores,
+    // que todavía no tenían origenPatologiaId, usando su contenido exacto.
+    const pathologyByFingerprint = new Map(
+      diagnosticosCompletos.map((p) => {
+        const details = buildQuantification(p);
+        return [fingerprint({
           codigo: ficha.codigo,
           elemento: p.elemento,
-          actividad: `${p.intervencion || 'Reparación'} de ${p.elemento.toLowerCase()} por ${p.patologia.toLowerCase()} ${p.ubicacion ? `(${p.ubicacion.toLowerCase()})` : ''}`,
+          actividad: details.actividad,
           cantidad: p.cantidad,
           unidad: p.unidad,
-          estado: p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular',
-          prioridad: p.severidad === 'Crítica' || p.severidad === 'Severa' ? 'Alta' : p.severidad === 'Moderada' ? 'Media' : 'Baja',
-        });
-      }
+          estado: details.estado,
+          prioridad: details.prioridad,
+        }), p.id] as const;
+      })
+    );
+    const cuantificacionesVinculadas = cuantificaciones.map((item) => {
+      if (item.origenPatologiaId) return item;
+      const sourceId = pathologyByFingerprint.get(fingerprint(item));
+      return sourceId ? { ...item, origenPatologiaId: sourceId } : item;
     });
-    onChange({ cuan: cuanCopia });
-    alert(`${ficha.pat.length} actividades generadas. Revise y ajuste en la Sección 8.`);
+    const transferidasActualizadas = new Set(
+      cuantificacionesVinculadas.map((item) => String(item.origenPatologiaId || '')).filter(Boolean)
+    );
+    const nuevas = diagnosticosCompletos.filter((p) => !transferidasActualizadas.has(String(p.id)));
+    const omitidasPorDuplicado = diagnosticosCompletos.length - nuevas.length;
+
+    if (!nuevas.length) {
+      alert(
+        diagnosticosCompletos.length === 0
+          ? 'No hay patologías completas para cuantificar. Complete patología, cantidad afectada, unidad y severidad en la Sección 7.'
+          : 'Las patologías completas ya fueron transferidas a la Sección 8. No se generaron duplicados.'
+      );
+      return;
+    }
+
+    const filas = nuevas.map((p) => {
+      const details = buildQuantification(p);
+      return {
+        id: Math.random().toString(),
+        codigo: ficha.codigo,
+        elemento: p.elemento,
+        actividad: details.actividad,
+        cantidad: p.cantidad,
+        unidad: p.unidad,
+        estado: details.estado,
+        prioridad: details.prioridad,
+        origenPatologiaId: p.id,
+      };
+    });
+
+    onChange({ cuan: [...cuantificacionesVinculadas, ...filas] });
+    alert(
+      `${filas.length} actividad(es) transferida(s) a la Sección 8.` +
+      (omitidasPorDuplicado ? ` ${omitidasPorDuplicado} ya existían y no se duplicaron.` : '') +
+      (pendientes.length ? ` ${pendientes.length} diagnóstico(s) siguen pendientes de completar cantidad, unidad o severidad.` : '')
+    );
   };
 
   const areaCalculada = useMemo(() => calculateArea(ficha).toFixed(2), [ficha]);
@@ -355,53 +439,67 @@ export function FichaForm({
   };
 
   /**
-   * Automatización para la tabla de elementos y patologías (Sección 7):
-   * 1. Al seleccionar un elemento del catálogo, autocompleta unidad, cantidad (1.00 si u),
-   *    severidad, patología, ubicación ('General' o específica) y acción de reposición.
-   * 2. Al cambiar el tipo de daño (patología) o la severidad, sugiere automáticamente una acción
-   *    de reposición coherente basada en el catálogo.
-   * 3. Mantiene en todo momento la plena capacidad de edición manual por parte del usuario.
+   * Asistencia de la sección 7:
+   * - Al seleccionar un elemento, solo propone la unidad de referencia.
+   * - La patología, ubicación, cantidad afectada y severidad son decisiones del inspector.
+   * - Sugiere la intervención únicamente después de registrar patología o severidad.
    */
+  const handleOpenPathologyTransfer = () => {
+    const candidates = collectPathologyTransferCandidates(ficha);
+    setPathologyTransferCandidates(candidates);
+    setSelectedPathologySources([]);
+    setShowPathologyTransfer(true);
+  };
+
+  const handleTogglePathologySource = (key: string) => {
+    setSelectedPathologySources((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+    );
+  };
+
+  const handleSelectAllPathologySources = () => {
+    setSelectedPathologySources(pathologyTransferCandidates.map((candidate) => candidate.key));
+  };
+
+  const handleClearPathologySources = () => {
+    setSelectedPathologySources([]);
+  };
+
+  const handleApplyPathologyTransfer = () => {
+    // Releer las secciones de origen justo antes de transferir para no usar
+    // una selección que quedó desactualizada mientras el panel estaba abierto.
+    const freshCandidates = collectPathologyTransferCandidates(ficha);
+    const rows = createPathologyRowsFromCandidates(
+      freshCandidates,
+      selectedPathologySources,
+    );
+    if (!rows.length) {
+      alert('Los registros seleccionados ya fueron transferidos o no hay elementos nuevos.');
+      return;
+    }
+
+    onChange({ pat: [...(Array.isArray(ficha.pat) ? ficha.pat : []), ...rows] });
+    setShowPathologyTransfer(false);
+    setPathologyTransferCandidates([]);
+    setSelectedPathologySources([]);
+  };
+
   const handlePatTableChange = (newData: any[]) => {
     const updated = newData.map((row, idx) => {
       const prev = ficha.pat[idx];
       let newRow = { ...row };
 
-      // Caso 1: Se seleccionó o modificó el elemento afectado
-      if (!prev || row.elemento !== prev.elemento) {
-        if (row.elemento) {
-          const defaults = getElementoDefaults(row.elemento);
-          if (defaults) {
-            if (defaults.unidad && (!row.unidad || (prev && row.unidad === prev.unidad))) {
-              newRow.unidad = defaults.unidad;
-            }
-            if ((newRow.unidad === 'u' || defaults.unidad === 'u') && (!newRow.cantidad || newRow.cantidad === '0.00' || newRow.cantidad === '0')) {
-              newRow.cantidad = '1.00';
-            } else if (defaults.cantidad && (!newRow.cantidad || newRow.cantidad === '0.00')) {
-              newRow.cantidad = defaults.cantidad;
-            }
-            if (defaults.severidad && (!row.severidad || (prev && row.severidad === prev.severidad))) {
-              newRow.severidad = defaults.severidad;
-            }
-            if (defaults.patologia && (!row.patologia || (prev && row.patologia === prev.patologia))) {
-              newRow.patologia = defaults.patologia;
-            }
-            if (defaults.ubicacion && (!row.ubicacion || row.ubicacion === 'General' || (prev && row.ubicacion === prev.ubicacion))) {
-              newRow.ubicacion = defaults.ubicacion;
-            }
-            if (defaults.intervencion && (!row.intervencion || (prev && row.intervencion === prev.intervencion))) {
-              newRow.intervencion = defaults.intervencion;
-            }
-          } else {
-            if (!newRow.ubicacion) newRow.ubicacion = 'General';
-            if (newRow.unidad === 'u' && (!newRow.cantidad || newRow.cantidad === '0.00' || newRow.cantidad === '0')) {
-              newRow.cantidad = '1.00';
-            }
-          }
+      // Al seleccionar el elemento solo se sugiere la unidad.
+      // No se presume daño, severidad, cantidad afectada, ubicación ni intervención.
+      if ((!prev || row.elemento !== prev.elemento) && row.elemento) {
+        const defaults = getElementoDefaults(row.elemento);
+        if (defaults?.unidad && (!row.unidad || (prev && row.unidad === prev.unidad))) {
+          newRow.unidad = defaults.unidad;
         }
       }
 
-      // Caso 2: Se modificó 'patologia' (tipo de daño) o 'severidad'
+      // La intervención se sugiere únicamente cuando ya se ha registrado
+      // una patología o severidad de forma expresa.
       const patologiaChanged = prev && row.patologia !== prev.patologia;
       const severidadChanged = prev && row.severidad !== prev.severidad;
       const intervencionChangedByUser = prev && row.intervencion !== prev.intervencion;
@@ -799,18 +897,118 @@ export function FichaForm({
 
       {/* 7. Patologías y deficiencias */}
       <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.patologias ? 'print:hidden' : ''}`}>
-        <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b pb-2">
           <h2 className="text-xl font-semibold text-blue-900 print:text-lg">
             7. Patologías y deficiencias
           </h2>
-          <button
-            type="button"
-            onClick={handlePasarSeccion8}
-            className="print:hidden text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200 font-medium"
-          >
-            Pasar a sección 8
-          </button>
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={handleOpenPathologyTransfer}
+              className="text-sm bg-emerald-100 text-emerald-800 px-3 py-2 rounded hover:bg-emerald-200 font-semibold"
+            >
+              Detectar novedades de secciones 3–6
+            </button>
+            <button
+              type="button"
+              onClick={handlePasarSeccion8}
+              className="text-sm bg-blue-100 text-blue-800 px-3 py-2 rounded hover:bg-blue-200 font-medium"
+            >
+              Pasar a sección 8
+            </button>
+          </div>
         </div>
+        <p className="mb-3 text-xs text-slate-600 print:hidden">
+          La detección propone elementos con estado Regular, Malo o Crítico, o con observaciones informativas.
+          La transferencia no confirma una patología: cantidad afectada, daño, ubicación y severidad deben verificarse.
+        </p>
+        {showPathologyTransfer && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 print:hidden">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-emerald-950">Revisar novedades del inventario</h3>
+                <p className="mt-1 text-xs text-emerald-900">
+                  Seleccione únicamente los registros que requieren diagnóstico en la sección 7.
+                  Los elementos en buen estado sin observaciones no se muestran.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPathologyTransfer(false)}
+                className="rounded px-2 py-1 text-xs text-slate-600 hover:bg-white"
+              >
+                Cerrar
+              </button>
+            </div>
+            {pathologyTransferCandidates.length === 0 ? (
+              <div className="mt-3 rounded-md border border-emerald-100 bg-white p-3 text-sm text-slate-600">
+                No se encontraron novedades pendientes. Puede revisar los estados y observaciones de las secciones 3, 4, 5 y 6.
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-emerald-950">
+                    {pathologyTransferCandidates.length} registro(s) disponible(s) · {selectedPathologySources.length} seleccionado(s)
+                  </span>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={handleSelectAllPathologySources} className="text-xs font-semibold text-emerald-800 underline">
+                      Seleccionar todos
+                    </button>
+                    <button type="button" onClick={handleClearPathologySources} className="text-xs text-slate-600 underline">
+                      Limpiar selección
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+                  {pathologyTransferCandidates.map((candidate) => (
+                    <label key={candidate.key} className="flex cursor-pointer items-start gap-3 rounded-md border border-emerald-100 bg-white p-3 hover:border-emerald-300">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 accent-emerald-700"
+                        checked={selectedPathologySources.includes(candidate.key)}
+                        onChange={() => handleTogglePathologySource(candidate.key)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800">
+                          {candidate.element}
+                          <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                            {candidate.state || 'Con detalle registrado'}
+                          </span>
+                        </span>
+                        <span className="mt-1 block text-[11px] text-slate-500">{candidate.sourceLabel}</span>
+                        {candidate.quantity && (
+                          <span className="mt-1 block text-xs text-slate-600">
+                            Cantidad inventariada: {candidate.quantity} {candidate.unit}
+                          </span>
+                        )}
+                        {candidate.detail && (
+                          <span className="mt-1 block text-xs text-slate-700">{candidate.detail}</span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPathologyTransfer(false)}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedPathologySources.length === 0}
+                    onClick={handleApplyPathologyTransfer}
+                    className="rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    Transferir seleccionados ({selectedPathologySources.length})
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
         <DataTable
           data={ficha.pat}
           onChange={handlePatTableChange}
@@ -822,6 +1020,7 @@ export function FichaForm({
             { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '10%' },
             { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '15%' },
             { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES },
+            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '24%' },
           ]}
         />
       </div>
