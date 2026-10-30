@@ -425,14 +425,9 @@ export function FichaForm({
   };
 
   const handleApplyPathologyTransfer = () => {
-    const existingKeys = new Set(
-      (Array.isArray(ficha.pat) ? ficha.pat : [])
-        .map((row) => String(row.origenKey || '').trim())
-        .filter(Boolean)
-    );
-    const freshCandidates = pathologyTransferCandidates.filter(
-      (candidate) => !existingKeys.has(candidate.key)
-    );
+    // Releer las secciones de origen justo antes de transferir para no usar
+    // una selección que quedó desactualizada mientras el panel estaba abierto.
+    const freshCandidates = collectPathologyTransferCandidates(ficha);
     const rows = createPathologyRowsFromCandidates(
       freshCandidates,
       selectedPathologySources,
