@@ -85,8 +85,12 @@ export const ROOM_TEMPLATES: RoomTemplate[] = [
       { section: 'elec', elemento: 'Tomacorriente regulado', unidad: 'u' },
       { section: 'elec', elemento: 'Punto de datos', unidad: 'u' },
       { section: 'equip', elemento: 'Lavamanos', unidad: 'u' },
+      { section: 'hidro', elemento: 'Llave de paso', unidad: 'u' },
       { section: 'hidro', elemento: 'Grifería', unidad: 'u' },
-      { section: 'hidro', elemento: 'Desagüe', unidad: 'u' },
+      { section: 'hidro', elemento: 'Manguera abasto lavamanos', unidad: 'u' },
+      { section: 'hidro', elemento: 'Manguera abasto inodoro', unidad: 'u' },
+      { section: 'hidro', elemento: 'Sifón', unidad: 'u' },
+      { section: 'hidro', elemento: 'Punto de desagüe', unidad: 'u' },
     ],
   },
   {
