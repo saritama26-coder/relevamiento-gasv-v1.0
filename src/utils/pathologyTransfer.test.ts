@@ -56,23 +56,51 @@ test('omite fuentes ya transferidas y no duplica la misma fila de inventario', (
   assert.equal(collectPathologyTransferCandidates(ficha).length, 0);
 });
 
-test('la transferencia conserva la referencia, pero deja diagnóstico y cantidad afectada pendientes', () => {
+test('precarga cantidad y unidad del inventario, mantiene pendientes los campos de diagnóstico y simplifica la referencia', () => {
   const ficha = {
     ...base,
-    cons: [{ id: 'c1', elemento: 'Paredes', estado: 'Malo', cantidad: '30.00', unidad: 'm²', observacion: 'Humedad en esquina' }],
+    cons: [{
+      id: 'c1',
+      elemento: 'Cerámica',
+      descripcion: 'Cerámica 30x30 cm',
+      estado: 'Regular',
+      cantidad: '188.73',
+      unidad: 'm²',
+      observacion: '',
+    }],
   } as unknown as typeof base;
   const candidates = collectPathologyTransferCandidates(ficha);
   const rows = createPathologyRowsFromCandidates(candidates, [candidates[0].key], () => 'pat-test');
 
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].elemento, 'Paredes');
+  assert.equal(rows[0].elemento, 'Cerámica');
   assert.equal(rows[0].unidad, 'm²');
-  assert.equal(rows[0].cantidad, '');
+  assert.equal(rows[0].cantidad, '188.73');
   assert.equal(rows[0].patologia, '');
   assert.equal(rows[0].ubicacion, '');
   assert.equal(rows[0].severidad, '');
   assert.equal(rows[0].intervencion, '');
   assert.equal(rows[0].id, 'pat-test');
-  assert.match(rows[0].referenciaOrigen || '', /Cantidad inventariada: 30.00 m²/);
-  assert.match(rows[0].referenciaOrigen || '', /Humedad en esquina/);
+  assert.equal(rows[0].referenciaOrigen, 'Sección 3 · Detalle: Cerámica 30x30 cm');
+  assert.doesNotMatch(rows[0].referenciaOrigen || '', /Estado registrado|Cantidad inventariada/);
+});
+
+test('cuando no existe detalle descriptivo, conserva únicamente el número de sección', () => {
+  const ficha = {
+    ...base,
+    equip: [{
+      id: 'eq1',
+      elemento: 'Escritorio',
+      estado: 'Malo',
+      cantidad: '4.00',
+      unidad: 'u',
+      observacion: '',
+    }],
+  } as unknown as typeof base;
+  const candidates = collectPathologyTransferCandidates(ficha);
+  const rows = createPathologyRowsFromCandidates(candidates, [candidates[0].key], () => 'pat-eq');
+
+  assert.equal(rows[0].referenciaOrigen, 'Sección 4');
+  assert.equal(rows[0].cantidad, '4.00');
+  assert.equal(rows[0].unidad, 'u');
 });
