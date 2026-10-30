@@ -76,13 +76,13 @@ export function FichaForm({
 
     const legacyNames = new Set(
       APARATOS_EQUIPAMIENTO_HIDRO_LEGACY.map((item) =>
-        item.trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+        item.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
       )
     );
     const currentHydro = Array.isArray(ficha.hidro) ? ficha.hidro : [];
     const movedRows = currentHydro.filter((row) => {
       const name = String(row.elemento || '').trim().normalize('NFD')
-        .replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+        .replace(/[\u0300-\u036f]/g, '').toLowerCase();
       return legacyNames.has(name);
     });
     if (!movedRows.length) return;
@@ -105,7 +105,7 @@ export function FichaForm({
       return {
         ...row,
         origenKey: originKey.replace('gasv:hidro:', 'gasv:equip:'),
-        referenciaOrigen: String(row.referenciaOrigen || '').replace(/^S6\\b/, 'S4'),
+        referenciaOrigen: String(row.referenciaOrigen || '').replace(/^S6\b/, 'S4'),
       };
     });
 
@@ -603,7 +603,7 @@ export function FichaForm({
   // Si no existen patologías con severidad válida, conserva la clasificación manual.
   useEffect(() => {
     const normalizeSeverity = (value: unknown) =>
-      String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+      String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const hasValidSeverity = (ficha.pat || []).some((row) =>
       ['critica', 'severa', 'moderada', 'leve'].includes(normalizeSeverity(row.severidad))
     );
@@ -864,7 +864,7 @@ export function FichaForm({
             </select>
             {(ficha.pat || []).some((row) =>
               ['critica', 'severa', 'moderada', 'leve'].includes(
-                String(row.severidad || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                String(row.severidad || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
               )
             ) && (
               <div className="mt-1.5 text-[11px] text-slate-700 bg-slate-50 p-2 rounded border border-slate-200">
@@ -919,7 +919,7 @@ export function FichaForm({
       {/* 4. Aparatos sanitarios, accesorios y equipamiento */}
       <div id="inventario-s4" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.equipamiento ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
-          4. Aparatos y equipamiento
+          4. Aparatos sanitarios, accesorios y equipamiento
         </h2>
         <DataTable
           data={ficha.equip}
@@ -964,7 +964,7 @@ export function FichaForm({
       {/* 6. Instalaciones, conexiones y accesorios hidrosanitarios */}
       <div id="inventario-s6" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.hidrosanitarias ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
-          6. Instalaciones hidrosanitarias
+          6. Instalaciones, conexiones y accesorios hidrosanitarios
         </h2>
         <DataTable
           data={ficha.hidro}
