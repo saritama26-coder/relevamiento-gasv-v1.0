@@ -32,7 +32,12 @@ export function CatalogProvider({
       const custom = (personalizados?.[key] || []).filter(
         (val) => !base.some((b) => b.toLowerCase() === val.toLowerCase())
       );
-      res[key] = [...base, ...custom];
+      const combined = [...base, ...custom];
+      // La opción genérica "Otro" debe permanecer al final, incluso cuando
+      // existan elementos personalizados agregados por el usuario.
+      const otherOptions = combined.filter((value) => value.trim().toLocaleLowerCase() === 'otro');
+      const regularOptions = combined.filter((value) => value.trim().toLocaleLowerCase() !== 'otro');
+      res[key] = [...regularOptions, ...otherOptions];
     });
 
     return res;
