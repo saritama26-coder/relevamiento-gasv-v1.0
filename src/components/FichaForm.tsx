@@ -1202,7 +1202,8 @@ export function FichaForm({
             { key: 'cantidad', label: 'Cantidad', type: 'number', width: '9%' },
             { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '8%' },
             { key: 'estado', label: 'Estado', type: 'select', options: ESTADOS, width: '13%' },
-            { key: 'prioridad', label: 'Prioridad', type: 'select', options: PRIORIDADES, width: '16%' },          ]}
+            { key: 'prioridad', label: 'Prioridad', type: 'select', options: PRIORIDADES, width: '16%' },
+          ]}
         />
       </div>
 
