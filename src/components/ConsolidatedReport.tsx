@@ -376,22 +376,26 @@ export function ConsolidatedReport({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="text-2xl font-bold tabular-nums text-slate-900">{checklist.reviewedCount}</div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Fichas revisadas</div>
               </div>
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <div className="text-2xl font-bold tabular-nums text-amber-900">{checklist.affectedFichaCount}</div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Fichas con observaciones</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Fichas afectadas</div>
               </div>
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
                 <div className="text-2xl font-bold tabular-nums text-rose-900">{checklist.errorCount}</div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Datos requeridos</div>
               </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="text-2xl font-bold tabular-nums text-amber-900">{checklist.warningCount}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Advertencias</div>
+              </div>
               <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
                 <div className="text-2xl font-bold tabular-nums text-sky-900">{checklist.informationCount}</div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-800">Datos no evaluables</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-800">No evaluables</div>
               </div>
             </div>
 
