@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test src/services/storage.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -23,7 +24,8 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "react-is": "^19.3.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
