@@ -12,33 +12,8 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// Limpieza de Service Workers y CacheStorage sin recarga previa (no bloqueante)
-if (typeof window !== 'undefined') {
-  try {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .getRegistrations()
-        .then((regs) => {
-          Promise.all(regs.map((r) => r.unregister())).catch(() => {});
-        })
-        .catch((e) => {
-          console.warn('Limpieza SW/caché:', e);
-        });
-    }
-    if ('caches' in window) {
-      caches
-        .keys()
-        .then((keys) => {
-          Promise.all(keys.map((k) => caches.delete(k))).catch(() => {});
-        })
-        .catch((e) => {
-          console.warn('Limpieza SW/caché:', e);
-        });
-    }
-  } catch (e) {
-    console.warn('Limpieza SW/caché:', e);
-  }
-}
+// El Service Worker de producción es administrado por vite-plugin-pwa.
+// No se eliminan registros ni cachés: pueden contener recursos necesarios para el modo offline.
 
 const rootElement = document.getElementById('root');
 if (rootElement) {
