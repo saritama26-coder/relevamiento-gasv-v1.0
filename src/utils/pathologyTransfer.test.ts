@@ -22,6 +22,7 @@ test('detecta elementos Regular/Malo/Crítico y observaciones informativas en se
       { id: 'c2', elemento: 'Piso', estado: 'Bueno', cantidad: '20.00', unidad: 'm²', observacion: 'Sin novedades' },
       { id: 'c3', elemento: 'Puerta', estado: 'Regular', cantidad: '1.00', unidad: 'u', observacion: '' },
       { id: 'c4', elemento: 'Ventana', estado: 'Bueno', descripcion: 'Ventana de aluminio', cantidad: '2.00', unidad: 'u', observacion: '' },
+      { id: 'c5', elemento: 'Pared lateral', estado: 'Bueno', cantidad: '10.00', unidad: 'm²', observacion: 'Fisura superficial en esquina' },
     ],
     elec: [
       { id: 'e1', elemento: 'Tomacorriente', estado: 'Crítico', cantidad: '2.00', unidad: 'u', observacion: 'Carcasa rota' },
@@ -29,8 +30,8 @@ test('detecta elementos Regular/Malo/Crítico y observaciones informativas en se
   } as unknown as typeof base;
 
   const candidates = collectPathologyTransferCandidates(ficha);
-  assert.equal(candidates.length, 3);
-  assert.deepEqual(candidates.map((item) => item.key), ['gasv:cons:c1', 'gasv:cons:c3', 'gasv:elec:e1']);
+  assert.equal(candidates.length, 4);
+  assert.deepEqual(candidates.map((item) => item.key), ['gasv:cons:c1', 'gasv:cons:c3', 'gasv:cons:c5', 'gasv:elec:e1']);
 });
 
 test('no genera candidatos por elementos en buen estado sin observaciones', () => {
