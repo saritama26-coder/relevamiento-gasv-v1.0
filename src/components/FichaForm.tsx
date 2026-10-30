@@ -840,7 +840,7 @@ export function FichaForm({
       </div>
 
       {/* 3. Elementos constructivos y acabados */}
-      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.constructivos ? 'print:hidden' : ''}`}>
+      <div id="inventario-s3" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.constructivos ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           3. Elementos constructivos y acabados
         </h2>
@@ -863,7 +863,7 @@ export function FichaForm({
       </div>
 
       {/* 4. Aparatos y equipamiento */}
-      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.equipamiento ? 'print:hidden' : ''}`}>
+      <div id="inventario-s4" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.equipamiento ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           4. Aparatos y equipamiento
         </h2>
@@ -885,7 +885,7 @@ export function FichaForm({
       </div>
 
       {/* 5. Instalaciones eléctricas */}
-      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.electricas ? 'print:hidden' : ''}`}>
+      <div id="inventario-s5" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.electricas ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           5. Instalaciones eléctricas
         </h2>
@@ -906,7 +906,7 @@ export function FichaForm({
       </div>
 
       {/* 6. Instalaciones hidrosanitarias */}
-      <div className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.hidrosanitarias ? 'print:hidden' : ''}`}>
+      <div id="inventario-s6" className={`print-card bg-white p-6 rounded-lg shadow-sm border border-gray-200 ${!printSections.hidrosanitarias ? 'print:hidden' : ''}`}>
         <h2 className="text-xl font-semibold text-blue-900 mb-4 border-b pb-2 print:text-lg">
           6. Instalaciones hidrosanitarias
         </h2>
@@ -1042,24 +1042,36 @@ export function FichaForm({
           </div>
         )}
         <DataTable
-          data={ficha.pat.map((row) => ({
-            ...row,
-            referenciaOrigen: normalizePathologySourceReference(row.referenciaOrigen),
-          }))}
+          data={ficha.pat.map((row) => {
+            const reference = normalizePathologySourceReference(row.referenciaOrigen);
+            const compactReference = /^S[3-6]$/i.test(reference) && row.elemento
+              ? `${reference} · ${row.elemento}`
+              : reference;
+            return { ...row, referenciaOrigen: compactReference };
+          })}
           onChange={handlePatTableChange}
+          onDisplayOnlyClick={(row) => {
+            const section = String(row.referenciaOrigen || '').match(/^(S[3-6])/i)?.[1]?.toUpperCase();
+            if (!section) return;
+            const target = document.getElementById(`inventario-${section.toLowerCase()}`);
+            target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (target) {
+              target.classList.add('ring-2', 'ring-blue-400');
+              window.setTimeout(() => target.classList.remove('ring-2', 'ring-blue-400'), 1800);
+            }
+          }}
           fixedLayout
           actionMenu
           actionWidth="7%"
           actionMinWidth={84}
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '18%' },
-            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '14%' },
-            
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '20%' },
+            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '16%' },
             { key: 'cantidad', label: 'Cantidad afectada', type: 'number', width: '8%' },
             { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '6%' },
             { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '10%' },
-            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '18%' },
-            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '19%', displayOnly: true },
+            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '22%' },
+            { key: 'referenciaOrigen', label: 'Origen', type: 'text', width: '11%', displayOnly: true, displayKind: 'sourceReference' },
           ]}
         />
       </div>
