@@ -42,6 +42,7 @@ import { GSARITAMA_HEADER_LOGO } from './constants/logoData';
 import { suggestIntervencion } from './constants/catalogos';
 import { GoogleDriveBackupModal } from './components/GoogleDriveBackupModal';
 import { ExportPdfModal } from './components/ExportPdfModal';
+import { exportProjectToExcel } from './utils/excelExport';
 import { GoogleDriveService, BackupPayload } from './services/googleDriveService';
 import { getAccessToken } from './services/googleAuth';
 import {
@@ -862,6 +863,30 @@ export default function App() {
     }
   };
 
+  const handleExportExcel = async () => {
+    if (!fichas.length && !confirm('No hay ambientes guardados. ¿Generar un libro Excel vacío con los datos generales del proyecto?')) {
+      return;
+    }
+    const checklist = getProjectVerificationChecklist(fichas);
+    if (checklist.hasPending) {
+      const summary = checklist.items
+        .filter((item) => item.status === 'warning' || item.status === 'error')
+        .map((item) => '• ' + item.title + ': ' + item.detail)
+        .join('\n');
+      const proceed = confirm(
+        'Control previo a la exportación Excel (' + checklist.pendingCount + ' observación(es)):\n\n' +
+        summary + '\n\n¿Deseas generar el archivo con la marca POR VERIFICAR en el resumen?'
+      );
+      if (!proceed) return;
+    }
+    try {
+      await exportProjectToExcel(fichas, projectData, checklist.hasPending);
+    } catch (error) {
+      console.error('Error al generar el libro Excel:', error);
+      alert('No se pudo generar el archivo Excel. Los datos de la aplicación no fueron modificados. Inténtalo nuevamente.');
+    }
+  };
+
   const handleExportProject = () => {
     if (!fichas.length && !confirm('No hay ambientes guardados. ¿Exportar de todos modos?')) {
       return;
@@ -1073,6 +1098,9 @@ export default function App() {
                 <button type="button" onClick={() => { handleExportCSVWithChecklist(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
                   <FileDown size={17} className="shrink-0" /> Exportar CSV
                 </button>
+                <button type="button" onClick={() => { void handleExportExcel(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-emerald-800 hover:bg-emerald-700">
+                  <FileSpreadsheet size={17} className="shrink-0" /> Exportar Excel (.xlsx)
+                </button>
                 <button type="button" onClick={() => { setShowExportModal(true); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left font-semibold bg-slate-700 hover:bg-slate-600">
                   <FileText size={17} className="shrink-0 text-red-400" /> Exportar PDF (elegir secciones)
                 </button>
@@ -1283,6 +1311,17 @@ export default function App() {
                   >
                     <FileSpreadsheet size={15} className="text-emerald-400 shrink-0" />
                     <span>Exportar CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleExportExcel();
+                      setExportDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    <FileSpreadsheet size={15} className="text-emerald-400 shrink-0" />
+                    <span>Exportar Excel (.xlsx)</span>
                   </button>
                   <button
                     type="button"
