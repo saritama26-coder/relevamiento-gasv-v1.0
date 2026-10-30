@@ -327,10 +327,6 @@ export function FichaForm({
   const handlePasarSeccion8 = () => {
     const patologias = Array.isArray(ficha.pat) ? ficha.pat : [];
     const cuantificaciones = Array.isArray(ficha.cuan) ? ficha.cuan : [];
-    const transferidas = new Set(
-      cuantificaciones.map((item) => String(item.origenPatologiaId || '')).filter(Boolean)
-    );
-
     const buildQuantification = (p: (typeof patologias)[number]) => {
       const estado = p.severidad === 'Crítica' ? 'Crítico' : p.severidad === 'Severa' ? 'Malo' : 'Regular';
       const prioridad = p.severidad === 'Crítica' || p.severidad === 'Severa'
