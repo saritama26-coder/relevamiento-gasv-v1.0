@@ -407,9 +407,9 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                       {col.displayOnly ? (
                         col.displayKind === 'sourceReference' ? (() => {
                           const raw = String(val || '').trim();
-                          const match = raw.match(/^(S[3-6])(?:\\s*[·:–-]\\s*(.*))?$/i);
+                          const match = raw.match(/^(S[3-6])(?:\s*[·:–-]\s*(.*))?$/i);
                           const section = match?.[1]?.toUpperCase() || '';
-                          const detail = (match?.[2] || raw || 'Sin referencia').replace(/^Detalle:\\s*/i, '').trim();
+                          const detail = (match?.[2] || raw || 'Sin referencia').replace(/^Detalle:\s*/i, '').trim();
                           const content = (
                             <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-left">
                               {section && <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">{section}</span>}
@@ -531,9 +531,9 @@ export function DataTable({ columns, data, onChange, fixedLayout = false, action
                         {col.displayOnly ? (
                           col.displayKind === 'sourceReference' ? (() => {
                             const raw = String(val || '').trim();
-                            const match = raw.match(/^(S[3-6])(?:\\s*[·:–-]\\s*(.*))?$/i);
+                            const match = raw.match(/^(S[3-6])(?:\s*[·:–-]\s*(.*))?$/i);
                             const section = match?.[1]?.toUpperCase() || '';
-                            const detail = (match?.[2] || raw || 'Sin referencia').replace(/^Detalle:\\s*/i, '').trim();
+                            const detail = (match?.[2] || raw || 'Sin referencia').replace(/^Detalle:\s*/i, '').trim();
                             const content = (
                               <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-left">
                                 {section && <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">{section}</span>}
