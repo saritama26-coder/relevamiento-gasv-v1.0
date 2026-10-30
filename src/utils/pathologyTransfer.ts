@@ -1,4 +1,5 @@
 import type { Ficha, PatologiaRow } from '../types';
+import { APARATOS_EQUIPAMIENTO_HIDRO_LEGACY } from '../constants/catalogos';
 
 export type InventorySectionKey = 'cons' | 'equip' | 'elec' | 'hidro';
 
@@ -21,7 +22,7 @@ const SOURCE_SECTIONS: Array<{
   { key: 'cons', label: 'Sección 3 · Elementos constructivos' },
   { key: 'equip', label: 'Sección 4 · Equipamiento' },
   { key: 'elec', label: 'Sección 5 · Instalaciones eléctricas' },
-  { key: 'hidro', label: 'Sección 6 · Instalaciones hidrosanitarias' },
+  { key: 'hidro', label: 'Sección 6 · Instalaciones, conexiones y accesorios hidrosanitarios' },
 ];
 
 function normalize(value: unknown): string {
@@ -111,6 +112,12 @@ export function collectPathologyTransferCandidates(
       const row = rawRow as unknown as Record<string, unknown>;
       const element = String(row.elemento ?? '').trim();
       if (!element) return;
+
+      // Los aparatos sanitarios pertenecen a la Sección 4. Se excluyen de
+      // nuevas transferencias desde hidro para evitar patologías duplicadas.
+      if (key === 'hidro' && APARATOS_EQUIPAMIENTO_HIDRO_LEGACY.some(
+        (item) => normalize(item) === normalize(element),
+      )) return;
 
       const state = String(row.estado ?? '').trim();
       const stateKey = normalize(state);
