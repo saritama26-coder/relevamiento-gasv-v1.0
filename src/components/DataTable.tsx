@@ -20,6 +20,8 @@ interface DataTableProps {
   onChange: (newData: any[]) => void;
   /** Distribuye las columnas con anchos definidos para tablas de muchas columnas. */
   fixedLayout?: boolean;
+  /** Ancho reservado para los controles de fila en tablas con distribución fija. */
+  actionWidth?: string;
 }
 
 function isCustomValue(listas: Record<string, string[]>, listId: string, val: any): boolean {
@@ -186,7 +188,7 @@ function CatalogInput({ value, options, onChange, className }: CatalogInputProps
   );
 }
 
-export function DataTable({ columns, data, onChange, fixedLayout = false }: DataTableProps) {
+export function DataTable({ columns, data, onChange, fixedLayout = false, actionWidth }: DataTableProps) {
   const { listas, agregar } = useCatalogos();
   const [activeCell, setActiveCell] = useState<string | null>(null);
 
@@ -422,7 +424,10 @@ export function DataTable({ columns, data, onChange, fixedLayout = false }: Data
                   {col.label}
                 </th>
               ))}
-              <th className="px-2 py-1.5 border border-gray-300 w-24 print:hidden text-center">
+              <th
+                className="px-2 py-1.5 border border-gray-300 print:hidden text-center whitespace-nowrap"
+                style={fixedLayout ? { width: actionWidth || '10%', minWidth: 124 } : undefined}
+              >
                 Acciones
               </th>
             </tr>
@@ -502,7 +507,11 @@ export function DataTable({ columns, data, onChange, fixedLayout = false }: Data
                       </td>
                     );
                   })}
-                  <td className="p-1 border border-gray-300 print:hidden text-center space-x-1 whitespace-nowrap">
+                  <td
+                    className="p-1 border border-gray-300 print:hidden text-center whitespace-nowrap"
+                    style={fixedLayout ? { width: actionWidth || '10%', minWidth: 124 } : undefined}
+                  >
+                    <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
                     <button
                       type="button"
                       onClick={() => handleMove(idx, -1)}
@@ -548,6 +557,7 @@ export function DataTable({ columns, data, onChange, fixedLayout = false }: Data
                     >
                       <Trash size={14} />
                     </button>
+                    </div>
                   </td>
                 </tr>
               );

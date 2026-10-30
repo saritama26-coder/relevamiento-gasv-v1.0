@@ -4,6 +4,7 @@ import type { Ficha } from '../types';
 import {
   collectPathologyTransferCandidates,
   createPathologyRowsFromCandidates,
+  normalizePathologySourceReference,
 } from './pathologyTransfer';
 
 const base = {
@@ -66,7 +67,7 @@ test('precarga cantidad y unidad del inventario, mantiene pendientes los campos 
       estado: 'Regular',
       cantidad: '188.73',
       unidad: 'm²',
-      observacion: '',
+      observacion: 'Severo desgaste',
     }],
   } as unknown as typeof base;
   const candidates = collectPathologyTransferCandidates(ficha);
@@ -81,7 +82,8 @@ test('precarga cantidad y unidad del inventario, mantiene pendientes los campos 
   assert.equal(rows[0].severidad, '');
   assert.equal(rows[0].intervencion, '');
   assert.equal(rows[0].id, 'pat-test');
-  assert.equal(rows[0].referenciaOrigen, 'Sección 3 · Detalle: Cerámica 30x30 cm');
+  assert.equal(rows[0].referenciaOrigen, 'S3 · Detalle: Cerámica 30x30 cm');
+  assert.doesNotMatch(rows[0].referenciaOrigen || '', /Severo desgaste/);
   assert.doesNotMatch(rows[0].referenciaOrigen || '', /Estado registrado|Cantidad inventariada/);
 });
 
@@ -100,7 +102,17 @@ test('cuando no existe detalle descriptivo, conserva únicamente el número de s
   const candidates = collectPathologyTransferCandidates(ficha);
   const rows = createPathologyRowsFromCandidates(candidates, [candidates[0].key], () => 'pat-eq');
 
-  assert.equal(rows[0].referenciaOrigen, 'Sección 4');
+  assert.equal(rows[0].referenciaOrigen, 'S4');
   assert.equal(rows[0].cantidad, '4.00');
   assert.equal(rows[0].unidad, 'u');
+});
+
+
+test('normaliza referencias antiguas y elimina el texto de observación posterior al detalle', () => {
+  assert.equal(
+    normalizePathologySourceReference('Sección 3 · Detalle: Ceramica 30x30 cm · Severo desgaste'),
+    'S3 · Detalle: Ceramica 30x30 cm',
+  );
+  assert.equal(normalizePathologySourceReference('Sección 4'), 'S4');
+  assert.equal(normalizePathologySourceReference('Referencia externa'), 'Referencia externa');
 });

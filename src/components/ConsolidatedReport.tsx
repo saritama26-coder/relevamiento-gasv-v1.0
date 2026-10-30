@@ -3,6 +3,7 @@ import { Printer, X, FileText, Layers, Check } from 'lucide-react';
 import { Ficha, ProjectData } from '../types';
 import { calculateArea, sanitizeFilename, formatTimestamp, getProjectVerificationChecklist } from '../utils/helpers';
 import { GSARITAMA_HEADER_LOGO } from '../constants/logoData';
+import { normalizePathologySourceReference } from '../utils/pathologyTransfer';
 
 interface ConsolidatedReportProps {
   fichas: Ficha[];
@@ -508,7 +509,7 @@ export function ConsolidatedReport({
                       <tr>
                         <th className="p-1 border border-slate-300">Elemento</th>
                         <th className="p-1 border border-slate-300">Patología</th>
-                        <th className="p-1 border border-slate-300">Cantidad</th>
+                        <th className="p-1 border border-slate-300">Cantidad afectada</th>
                         <th className="p-1 border border-slate-300">Severidad</th>
                         <th className="p-1 border border-slate-300">Referencia de inventario</th>
                       </tr>
@@ -522,7 +523,7 @@ export function ConsolidatedReport({
                             {row.cantidad} {row.unidad}
                           </td>
                           <td className="p-1 border border-slate-300">{row.severidad}</td>
-                          <td className="p-1 border border-slate-300 break-words">{row.referenciaOrigen || '—'}</td>
+                          <td className="p-1 border border-slate-300 break-words">{normalizePathologySourceReference(row.referenciaOrigen) || '—'}</td>
                         </tr>
                       ))}
                     </tbody>

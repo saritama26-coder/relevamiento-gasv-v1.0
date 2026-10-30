@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Ficha, ProjectData, PrintSectionsConfig, DEFAULT_PRINT_SECTIONS } from '../types';
 import { ROOM_TEMPLATES, applyRoomTemplate } from '../constants/roomTemplates';
-import { collectPathologyTransferCandidates, createPathologyRowsFromCandidates, type PathologyTransferCandidate } from '../utils/pathologyTransfer';
+import { collectPathologyTransferCandidates, createPathologyRowsFromCandidates, normalizePathologySourceReference, type PathologyTransferCandidate } from '../utils/pathologyTransfer';
 import { DataTable } from './DataTable';
 import { useCatalogos } from '../context/CatalogContext';
 import {
@@ -1010,18 +1010,21 @@ export function FichaForm({
           </div>
         )}
         <DataTable
-          data={ficha.pat}
+          data={ficha.pat.map((row) => ({
+            ...row,
+            referenciaOrigen: normalizePathologySourceReference(row.referenciaOrigen),
+          }))}
           onChange={handlePatTableChange}
           fixedLayout
           columns={[
-            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '12%' },
-            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '15%' },
+            { key: 'elemento', label: 'Elemento afectado', type: 'text', dataListId: 'list-pat-elem', width: '11%' },
+            { key: 'patologia', label: 'Patología / deficiencia', type: 'text', dataListId: 'list-pat-tipos', width: '13%' },
             
-            { key: 'cantidad', label: 'Cantidad', type: 'number', width: '8%' },
-            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '7%' },
-            { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '11%' },
-            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '16%' },
-            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '23%', displayOnly: true },
+            { key: 'cantidad', label: 'Cantidad afectada', type: 'number', width: '8%' },
+            { key: 'unidad', label: 'Unidad', type: 'text', dataListId: 'list-unidades', width: '6%' },
+            { key: 'severidad', label: 'Severidad', type: 'select', options: SEVERIDADES, width: '10%' },
+            { key: 'intervencion', label: 'Intervención recomendada', type: 'select', options: INTERVENCIONES, width: '12%' },
+            { key: 'referenciaOrigen', label: 'Referencia de origen', type: 'text', width: '30%', displayOnly: true },
           ]}
         />
       </div>
