@@ -19,22 +19,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: bun install --frozen-lockfile
 
       - name: Type-check the application
-        run: npm run lint
+        run: bun run lint
 
       - name: Use the React/Vite application entry point
         run: cp index.vite.html index.html
 
       - name: Build the production site
-        run: npm run build
+        run: bun run build
 
       - name: Publish the built site to gh-pages
         uses: peaceiris/actions-gh-pages@v4
